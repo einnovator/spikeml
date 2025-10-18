@@ -1,5 +1,8 @@
-from typing import Any, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import numpy as np
+
+import matplotlib.pyplot as plt
+import matplotlib as mplt
 
 class Monitor:
     """
@@ -93,27 +96,27 @@ class Monitor:
         else:
             return None
         
-def _sample_prop(self, key: str, prop: Optional[str] = None, ref: Optional[Any] = None, copy: bool = True) -> None:
-    """
-    Sample a property from the reference object and store it in the monitor.
+    def _sample_prop(self, key: str, prop: Optional[str] = None, ref: Optional[Any] = None, copy: bool = True) -> None:
+        """
+        Sample a property from the reference object and store it in the monitor.
 
-    Parameters
-    ----------
-    key : str
-        Attribute name in the monitor where the value will be stored.
-    prop : str, optional
-        Name of the property to sample from the reference. Defaults to `key`.
-    ref : object, optional
-        Reference object to sample from. Defaults to self.ref.
-    copy : bool, default True
-        Whether to copy the value (important for numpy arrays or mutable objects).
-    """
-    if ref is None:
-        ref = self.ref
-    if prop is None:
-        prop = key
-    self._sample(key, self._get(prop, ref=ref, copy=copy))
-    
+        Parameters
+        ----------
+        key : str
+            Attribute name in the monitor where the value will be stored.
+        prop : str, optional
+            Name of the property to sample from the reference. Defaults to `key`.
+        ref : object, optional
+            Reference object to sample from. Defaults to self.ref.
+        copy : bool, default True
+            Whether to copy the value (important for numpy arrays or mutable objects).
+        """
+        if ref is None:
+            ref = self.ref
+        if prop is None:
+            prop = key
+        self._sample(key, self._get(prop, ref=ref, copy=copy))
+        
     def _prefix(self, prefix: Optional[str] = None) -> str:
         """
         Determine the prefix string for the monitor or reference name.
@@ -144,4 +147,3 @@ def _sample_prop(self, key: str, prop: Optional[str] = None, ref: Optional[Any] 
         if prefix is None:
             prefix = ''
         return prefix
-

@@ -5,6 +5,13 @@ from typing import Optional, Tuple, Union, Any
 from spikeml.core.vector import _sum 
 from spikeml.core.base import Component, Module, Fan, Composite, Chain
 
+from spikeml.core.snn_monitor import SSensorMonitor, SNNMonitor, SSNNMonitor, ConnectorMonitor
+from spikeml.core.snn_viewer import  SSensorMonitorViewer, SNNMonitorViewer, SSNNMonitorViewer, ConnectorMonitorViewer, LIConnectorMonitorViewer, ErrorMonitorViewer
+
+from spikeml.core.spikes import pspike, spike
+from spikeml.core.matrix import matrix_split, normalize_matrix, _mult, cmask, cmask2, matrix_init, matrix_init2
+from spikeml.utils.nb_util import xdisplay, Markup
+
 def __cov_update(M, s=None, y=None, zc_p=None, zc_n=None, params=None, debug=False):
     s = s
     y = y
