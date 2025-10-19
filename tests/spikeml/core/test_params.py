@@ -1,5 +1,5 @@
 
-from spikelogik.core.params import Params, NNParams, ConnectorParams, SpikeParams, SSensorParams, SNNParams, SSNNParams
+from spikeml.core.params import Params, NNParams, ConnectorParams, SpikeParams, SSensorParams, SNNParams, SSNNParams
 
 def test_params():
     print(SSNNParams(g=4, pmax=.5))

@@ -278,6 +278,8 @@ def plot_input(
     s = data[0]
     ax.vlines(x, ymin, ymax, color=color, lw=lw, linestyle='dashed')
 
+    if va is None:
+        va = 'bottom'
     y = ymin + (ymax-ymin)*.01
     ax.text(0, y, f'{s}', ha='left', va=va, color=color, fontsize=fontsize)
     for i in range(0, x.shape[0]):

@@ -1,5 +1,5 @@
-from spikelogik.core.base import Component, Module, Fan, Composite, Chain
-from spikelogik.core.monitor import Monitor
+from spikeml.core.base import Component, Module, Fan, Composite, Chain
+from spikeml.core.monitor import Monitor
 
 
 def test_monitor():

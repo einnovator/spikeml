@@ -4,6 +4,7 @@ from typing import Optional, Tuple, Union, Any
 
 from spikeml.core.vector import _sum 
 from spikeml.core.base import Component, Module, Fan, Composite, Chain
+from spikeml.core.params import Params, NNParams, ConnectorParams, SpikeParams, SSensorParams, SNNParams, SSNNParams
 
 from spikeml.core.snn_monitor import SSensorMonitor, SNNMonitor, SSNNMonitor, ConnectorMonitor
 from spikeml.core.snn_viewer import  SSensorMonitorViewer, SNNMonitorViewer, SSNNMonitorViewer, ConnectorMonitorViewer, LIConnectorMonitorViewer, ErrorMonitorViewer
@@ -329,6 +330,8 @@ class SimpleLayer(Module):
                  callback: Optional[Any] = None) -> None:
         super().__init__(name=name, params=params, auto_sample=auto_sample, monitor=monitor, viewer=viewer, callback=callback)
         self.M = M
+        if M is not None:
+            M._parent = self
         self.shape = self.M.shape if M is not None else None
         self.n = None
         if self.shape is not None:
@@ -468,7 +471,7 @@ class SSNN(SimpleLayer):
                  callback: Optional[Any] = None) -> None:
         
         super().__init__(M=M, name=name, auto_sample=auto_sample, callback=callback)
-        self.b = b if b is not None else np.zeros(self.n)
+        self.b = np.zeros(self.n)
         self.s,self.zs = None,None
         self.y,self.zy = None,None
         if params is None:
@@ -560,12 +563,15 @@ class SSensor(Layer):
         self.monitor=monitor
                 
     def propagate(self, s):
+        s,sx = s[0],s[1] if isinstance(s, tuple) else (s,s)             
         self.s = s
+        self.sx = sx
+        #self.log()
         self.zs = spike(self.s, self.params)
         return self.s,self.zs
 
     def log(self, options=None):
-        print(f'{self.name}: s={self.s} | zs={self.zs}') 
+        print(f'{self.name}: sx={self.s}; s={self.s}  -> zs={self.zs}') 
 
 
 class DSSNN(SSNN):

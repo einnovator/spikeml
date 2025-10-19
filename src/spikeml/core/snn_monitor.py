@@ -6,6 +6,9 @@ from spikeml.core.monitor import Monitor
 from spikeml.core.viewer import MonitorViewer
 
 from spikeml.core.matrix import matrix_split
+from spikeml.core.signal import mean_per_input
+
+
 
 class SSensorMonitor(Monitor):
     """Monitor for SSensor spike sensor layer."""
@@ -23,7 +26,7 @@ class SSensorMonitor(Monitor):
         self._sample_prop('sx')
         self._sample_prop('s')
         self._sample_prop('zs')
-
+        
         self.compute()
         self._sample_prop('us')
 

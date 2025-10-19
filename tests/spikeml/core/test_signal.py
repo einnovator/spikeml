@@ -1,4 +1,4 @@
-from spikelogik.core.signal import signal_dc, signal_pulse, encode1_onehot, encode_onehot, signal_ranges, mean_per_input
+from spikeml.core.signal import signal_dc, signal_pulse, encode1_onehot, encode_onehot, signal_ranges, mean_per_input
 
 def test_signal():
     ss = signal_dc(2, T=10, s=0, value=2)

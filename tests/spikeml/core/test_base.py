@@ -1,4 +1,4 @@
-from spikelogik.core.base import Component, Module, Fan, Composite, Chain
+from spikeml.core.base import Component, Module, Fan, Composite, Chain
 
 
 def test_chain():

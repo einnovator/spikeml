@@ -1,6 +1,6 @@
 import numpy as np
 
-from spikelogik.core.ngram import build_ngram, ngram_find, ngram_msample, print_ngrams
+from spikeml.core.ngram import build_ngram, ngram_find, ngram_msample, print_ngrams
 
 def test_ngram():
     NSYM=2

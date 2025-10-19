@@ -58,6 +58,7 @@ class MonitorViewer():
             Tuple[plt.Figure, Union[np.ndarray, plt.Axes]]: Figure and axes handles.
         """
         fig, axs = plt.subplots(nrows, ncols, figsize=(width*ncols, height*nrows))
+        plt.subplots_adjust(hspace=1)
         return fig, axs
         
     def _prefix(self, prefix: Optional[str] = None) -> str:

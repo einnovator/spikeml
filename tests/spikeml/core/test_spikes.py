@@ -1,8 +1,8 @@
 import numpy as np
 
-from spikelogik.core.params import SSensorParams
+from spikeml.core.params import SSensorParams
 
-from spikelogik.core.spikes import pspike, spike, plot_pspike
+from spikeml.core.spikes import pspike, spike, plot_pspike
 
 def test_spike():
     params = SSensorParams()

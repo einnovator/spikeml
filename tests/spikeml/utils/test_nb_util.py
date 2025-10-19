@@ -1,7 +1,7 @@
 
 import numpy as np
 
-from spikelogik.utils.nb_util import xdisplay, Markup
+from spikeml.utils.nb_util import xdisplay, Markup
 
 def test_xdisplay():
     A = np.array([[1/3, 2, 3], [3, 4,3],[1/3, 2, 3], [3, 4,3]])

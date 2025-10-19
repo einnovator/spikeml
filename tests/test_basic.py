@@ -1,4 +1,4 @@
-from spikelogiks.core import Neuron
+from spikemls.core import Neuron
 
 def test_spike():
     n = Neuron(threshold=1.0)

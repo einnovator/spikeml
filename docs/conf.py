@@ -1,8 +1,8 @@
 import os
 import sys
-sys.path.insert(0, os.path.abspath('../spikelogiks'))
+sys.path.insert(0, os.path.abspath('../spikemls'))
 
-project = 'spikelogiks'
+project = 'spikemls'
 author = 'Your Name'
 release = '0.0.1'
 

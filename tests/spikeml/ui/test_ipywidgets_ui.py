@@ -1,6 +1,6 @@
 
 
-from spikelogik.ui.ipywidget_ui import ui
+from spikeml.ui.ipywidget_ui import ui
 
 def test_ui():
     params = SSNNParams()

@@ -2,7 +2,7 @@ import numpy as np
 import math
 from typing import Optional, Union
 
-from spikelogik.core.params import Params, NNParams, ConnectorParams, SpikeParams, SSensorParams, SNNParams, SSNNParams
+from spikeml.core.params import Params, NNParams, ConnectorParams, SpikeParams, SSensorParams, SNNParams, SSNNParams
 
 def compute_error(
     s: np.ndarray,

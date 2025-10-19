@@ -1,9 +1,9 @@
 import numpy as np
 
-from spikelogik.core.params import SSNNParams
-from spikelogik.core.feedback import compute_error, compute_sg
+from spikeml.core.params import SSNNParams
+from spikeml.core.feedback import compute_error, compute_sg
 
-from spikelogik.core.spikes import pspike, spike, plot_pspike
+from spikeml.core.spikes import pspike, spike, plot_pspike
 
 def test_compute_error():
     params = SSNNParams()
