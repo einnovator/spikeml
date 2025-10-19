@@ -6,7 +6,7 @@ from spikeml.core.vector import _sum
 from spikeml.core.base import Component, Module, Fan, Composite, Chain
 from spikeml.core.params import Params, NNParams, ConnectorParams, SpikeParams, SSensorParams, SNNParams, SSNNParams
 
-from spikeml.core.snn_monitor import SSensorMonitor, SNNMonitor, SSNNMonitor, ConnectorMonitor
+from spikeml.core.snn_monitor import SSensorMonitor, SNNMonitor, SSNNMonitor, ConnectorMonitor, LIConnectorMonitor
 from spikeml.core.snn_viewer import  SSensorMonitorViewer, SNNMonitorViewer, SSNNMonitorViewer, ConnectorMonitorViewer, LIConnectorMonitorViewer, ErrorMonitorViewer
 
 from spikeml.core.spikes import pspike, spike
@@ -645,9 +645,9 @@ class LinearConnector(Connector):
         self.M = M
         self.shape = M.shape if M is not None else None 
         if monitor==True:
-            monitor = ConnectorMonitor(ref=self)
+            monitor = LIConnectorMonitor(ref=self)
         if viewer==True:
-            viewer = ConnectorMonitorViewer(monitor)
+            viewer = LIConnectorMonitorViewer(monitor)
         self.viewer=viewer
         self.monitor=monitor
 
@@ -743,7 +743,7 @@ class LIConnector(LinearConnector):
         self._M = M
         self.dM, self.dMp, self.dMn, self.Zp, self.Zn, self.Wp, self.Wn = None, None, None, None, None, None, None 
         if monitor==True:
-            monitor = ConnectorMonitor(ref=self)
+            monitor = LIConnectorMonitor(ref=self)
         if viewer==True:
             viewer = LIConnectorMonitorViewer(monitor)
         self.monitor=monitor
@@ -754,6 +754,7 @@ class LIConnector(LinearConnector):
         return self.M @ other
         
     def propagate(self, zs, zy):
+        self._M = self.M
         self.M, self.Cp, self.Cn, dM, dMp, dMn, Zp, Zn, Wp, Wn = \
             conn_update(self.M, self.Cp, self.Cn, zy, zs, params=self.params, debug=False)
         self.dM, self.dMp, self.dMn, self.Zp, self.Zn, self.Wp, self.Wn = dM, dMp, dMn, Zp, Zn, Wp, Wn 

@@ -144,6 +144,30 @@ class ConnectorMonitor(Monitor):
             self.dwn.append(dw)    
         return self
     
+class LIConnectorMonitor(ConnectorMonitor):
+    """Monitor for LIConnector"""
+
+    def __init__(self, ref: Optional[Any] = None) -> None:
+        """
+        Args:
+            ref: Reference to the connector being monitored.
+        """
+        super().__init__(ref=ref)
+        
+    def sample(self) -> "LIConnectorMonitor":
+        """Sample the state of the connector"""
+        super().sample()
+        self._sample_prop('Cp')
+        self._sample_prop('Cn')
+        #self._sample_prop('dM')
+        #self._sample_prop('dMp')
+        #self._sample_prop('dMn')
+        self._sample_prop('Zp')
+        self._sample_prop('Zn')
+        self._sample_prop('Wp')
+        self._sample_prop('Wn')        
+        return self
+
 class ErrorMonitor(Monitor):
     """Monitor for tracking error and mean error during training."""
 

@@ -158,7 +158,19 @@ class LIConnectorMonitorViewer(ConnectorMonitorViewer):
     def render(self, options: Optional[Union[dict, List[str], str]] = None) -> None:
         """Render LI connector monitor using base connector viewer logic."""
         super().render(options=options)
-
+        _,axs = self._axes(6)
+        self._plot_mt(['Cp'], callback=lambda ax: self._plot_input(ax), options=options, ax=axs[0])
+        self._plot_mt(['Cn'], callback=lambda ax: self._plot_input(ax), options=options, ax=axs[1])
+        #self._plot_mt(['dM'], callback=lambda ax: self._plot_input(ax), options=options, ax=axs[0])
+        #self._plot_mt(['dMp'], callback=lambda ax: self._plot_input(ax), options=options, ax=axs[0])
+        #self._plot_mt(['dMn'], callback=lambda ax: self._plot_input(ax), options=options, ax=axs[0])
+        self._plot_mt(['Zp'], callback=lambda ax: self._plot_input(ax), options=options, ax=axs[2])
+        self._plot_mt(['Zn'], callback=lambda ax: self._plot_input(ax), options=options, ax=axs[3])
+        self._plot_mt(['Wp'], callback=lambda ax: self._plot_input(ax), options=options, ax=axs[4])
+        self._plot_mt(['Wn'], callback=lambda ax: self._plot_input(ax), options=options, ax=axs[5])
+        plt.show()
+        return self
+    
 class ErrorMonitorViewer(MonitorViewer):
     """Viewer for ErrorMonitor, visualizing error metrics over time."""
 
