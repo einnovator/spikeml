@@ -1,4 +1,4 @@
-from typing import Any, List, Optional, Union
+from typing import Any, List, Optional, Union, Dict
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -6,19 +6,19 @@ from spikeml.core.monitor import Monitor
 from spikeml.core.viewer import MonitorViewer
 
 from spikeml.core.matrix import matrix_split
-from spikeml.core.signal import mean_per_input
-
+from spikeml.core.signal import stats_per_input, mean_per_input, sum_per_input, var_per_input, std_per_input
 
 
 class SSensorMonitor(Monitor):
     """Monitor for SSensor spike sensor layer."""
 
-    def __init__(self, ref: Optional[Any] = None) -> None:
+    def __init__(self, ref: Optional[Any] = None, E: Optional[int]=0) -> None:
         """
         Args:
             ref: Reference to the layer being monitored.
         """
         super().__init__(ref=ref)
+        self.E = E
 
     def sample(self) -> None:
         """Sample properties of the sensor and compute derived values."""
@@ -34,6 +34,17 @@ class SSensorMonitor(Monitor):
         """Compute the sum of spikes in the sensor layer."""
         ref = self.ref
         ref.us = ref.s.sum()
+        
+
+    def log(self, options: Optional[Dict[str, Any]] = None) -> None:
+        prefix = self._prefix()
+        ref, size, sums = sum_per_input(self.zs, self.sx, E=self.E)
+        for i in range(0, ref.shape[0]):
+            print(f'{prefix}.zs:', f'{i}: {ref[i]} (#{size[i]}); Count: {sums[i]}')
+        ref, ranges, means = mean_per_input(self.zs, self.sx, E=self.E, aggregate=False)
+        for i in range(0, ref.shape[0]):
+            print(f'{prefix}.zs:', f'{i}: {ref[i]} (#{ranges[i]}); Count: {sums[i]}')
+
 
 class SNNMonitor(Monitor):
     """Monitor for SNN (Spiking Neural Network) layer."""
@@ -171,7 +182,7 @@ class LIConnectorMonitor(ConnectorMonitor):
 class ErrorMonitor(Monitor):
     """Monitor for tracking error and mean error during training."""
 
-    def __init__(self, name: Optional[str] = None) -> None:
+    def __init__(self, name: Optional[str] = None, E: Optional[int]=0) -> None:
         """
         Args:
             name: Optional name of the monitor.
@@ -183,6 +194,7 @@ class ErrorMonitor(Monitor):
         self._serr = 0
         self._n = 0
         self._merr = 0
+        self.E = E
 
     def sample(self, s: np.ndarray, err: float, sm: np.ndarray) -> "ErrorMonitor":
         """Sample error for a given step.
@@ -215,7 +227,10 @@ class ErrorMonitor(Monitor):
         """Print error statistics."""
         prefix = self._prefix()
         print(f'{prefix}:', f'merr: {self.merr[-1]:.4f}')
-        ref, size, means = mean_per_input(self.err, self.s)
+        ref, size, means = mean_per_input(self.err, self.s, E=self.E)
         for i in range(0, ref.shape[0]):
             print(f'{prefix}:', f'{i}: {ref[i]} (#{size[i]}); Err: {means[i]:.4f}')
+        ref, ranges, means = mean_per_input(self.err, self.s, E=self.E, aggregate=False)
+        for i in range(0, ref.shape[0]):
+            print(f'{prefix}:', f'{i}: {ref[i]} (#{ranges[i]}); Err: {means[i]}')
 

@@ -30,6 +30,7 @@ def run(
     plot: bool = True,
     callback: Optional[Callable[[Context], bool]] = None,
     log_step: int = 1,
+    silent: bool = False,
     options: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """Run a single neural network simulation over time.
@@ -117,11 +118,14 @@ def run(
         if done:
             break
 
+    if not silent:
+        if feedback:
+            err_monitor.log()
+        nn.log_monitor(options)
+
     if plot:
         nn.render(options)
-        if feedback:
-            err_viewer.render()
-            err_monitor.log()
+        err_viewer.render()
 
     result = { 'nn': nn, 'err_monitor': err_monitor, 'err_viewer': err_viewer, 't': t }
     return result

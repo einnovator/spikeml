@@ -143,6 +143,11 @@ def plot_data(
     if ylabel is not None:
         ax.set_xlabel(ylabel, fontsize=6)
 
+    ax.margins(0) 
+    #plt.tight_layout(pad=0)
+    #ax.set_xlim(0, max_x)
+    #ax.set_ylim(0, max_y)
+
     if ylim is not None:
         ax.set_ylim(ylim[0], ylim[1])
     if fig is not None:
@@ -223,9 +228,10 @@ def plot_input(
     ylim: Optional[Tuple[float, float]] = None,
     color: str = 'b',
     lw: float = 0.5,
-    va: str = 'bottom',
+    va: str = 'top',
     fontsize: int = 5,
-    ax: Optional[Axes] = None
+    ax: Optional[Axes] = None,
+    ypos: float = -.01
 ) -> None:
     """
     Plot discrete input signal transitions with annotated symbol values.
@@ -279,8 +285,8 @@ def plot_input(
     ax.vlines(x, ymin, ymax, color=color, lw=lw, linestyle='dashed')
 
     if va is None:
-        va = 'bottom'
-    y = ymin + (ymax-ymin)*.01
+        va = 'top'
+    y = ymin + (ymax-ymin)*ypos
     ax.text(0, y, f'{s}', ha='left', va=va, color=color, fontsize=fontsize)
     for i in range(0, x.shape[0]):
         j = x[i]
@@ -432,38 +438,58 @@ def plot_mt(
         #plt.tight_layout()
         plt.show()
 
+
 def plot_spikes(
     data: np.ndarray,
     title: Optional[str] = None,
     name: Optional[str] = None,
     xlabel: Optional[str] = None,
     callback: Optional[Callback] = None,
-    ax: Optional[Axes] = None
+    ax: Optional[Axes] = None,
+    width: float =10,
+    heigth: float = 1
 ) -> None:
     """
-    Visualize spike trains as vertical markers over time.
+    Plot spike trains as a raster plot with vertical markers over time.
+
+    This function visualizes spiking activity from one or multiple neurons (or layers)
+    across time steps. Each spike is represented as a short vertical line, creating
+    a raster-like visualization commonly used in spiking neural network analysis.
 
     Parameters
     ----------
-    data : ndarray
-        Binary spike data:
-        - 2D array of shape (T, N): N neurons, T time steps.
-        - 3D array of shape (T, M, N): multiple layers or groups of neurons.
-    title : str, optional
+    data : np.ndarray
+        Binary spike data, where nonzero entries indicate spike events.
+        Supported shapes:
+            - (T, N): N neurons over T time steps.
+            - (T, M, N): M groups (or layers) of N neurons over T time steps.
+    title : Optional[str], default=None
         Title of the plot.
-    name : str, optional
-        Base name for neuron labels. Default is empty string.
-    xlabel : str, optional
-        Label for the x-axis.
-    callback : callable, optional
-        Function that modifies the axis after plotting.
-    ax : matplotlib.axes.Axes, optional
-        Axis to draw on. Creates a new figure if None.
+    name : Optional[str], default=None
+        Base name for neuron or layer labels (e.g., "Neuron", "Layer").
+    xlabel : Optional[str], default=None
+        Label for the x-axis (typically time).
+    callback : Optional[Callable[[Axes], None]], default=None
+        Optional function called with the Matplotlib Axes object after plotting,
+        allowing for custom post-processing or styling.
+    ax : Optional[matplotlib.axes.Axes], default=None
+        Existing Matplotlib Axes object to draw on. If None, a new figure and
+        axes are created.
+    width : float, default=10
+        Figure width in inches (used only if `ax` is None).
+    heigth : float, default=1
+        Figure height in inches (used only if `ax` is None).
 
     Returns
     -------
     None
-        Displays the raster plot of spike events.
+        The function creates a spike raster plot, displayed via Matplotlib.
+
+    Notes
+    -----
+    - Each row (or group) corresponds to one neuron or neuron group.
+    - Nonzero entries in `data` are treated as spikes (drawn as vertical lines).
+    - When `callback` is provided, it can be used to add annotations or modify axes.
     """
     
     if type(data)==list: data = np.stack(data)
@@ -471,7 +497,7 @@ def plot_spikes(
     fig = None
     if ax is None:
         nrows, ncols = 1, 1
-        fig, axs = plt.subplots(nrows, ncols, figsize=(10*ncols, 1*nrows))
+        fig, axs = plt.subplots(nrows, ncols, figsize=(width*ncols, heigth*nrows))
         ax = axs if nrows==1 and ncols==1 else axs[i] if nrows==1 else axs[0][0]
 
     if name is None:
@@ -480,7 +506,11 @@ def plot_spikes(
     vpad = 5
     height = 10
     #ax.set_xlim(0, data.shape[0])
-    #ax.set_ylim(0, (data.shape[1]+1)*(height+vpad))
+    if len(data.shape)==3:
+        n = data.shape[1]*data.shape[2]
+    else:
+        n = data.shape[1]
+    ax.set_ylim(0, (n)*(height+vpad))
     xmin,xmax = ax.get_xlim()
     ymin,ymax = ax.get_ylim()
 
@@ -493,8 +523,8 @@ def plot_spikes(
                 indexes = np.nonzero(data[:,i,j])[0]
                 x = indexes*hpad
                 ax.vlines(x, y, y+height, color='b')
-                ax.text(0, y, f'[{i},{j}]', ha='right', fontsize=6)
-                ax.text(data.shape[0], y, f'{x.shape[0]} ', ha='left', fontsize=6)
+                ax.text(0, y, f'[{i},{j}]  ', ha='right', fontsize=6)
+                ax.text(data.shape[0], y, f'  {x.shape[0]} ', ha='left', fontsize=6)
         ax.hlines(yy, 0, data.shape[0], color='b', lw=.5)
 
     else:
@@ -502,10 +532,11 @@ def plot_spikes(
             y = ymax-(i+1)*(height+vpad) 
             yy.append(y)
             indexes = np.nonzero(data[:,i])[0]
+            #print(i, indexes, data[:,i])
             x = indexes*hpad
             ax.vlines(x, y, y+height, color='b')
-            ax.text(0, y, f'{i} ', ha='right', fontsize=6)
-            ax.text(data.shape[0], y, f'{x.shape[0]} ', ha='left', fontsize=6)
+            ax.text(0, y, f'{i}  ', ha='right', fontsize=6)
+            ax.text(data.shape[0], y, f'   {x.shape[0]} ', ha='left', fontsize=6)
 
         ax.hlines(yy, 0, data.shape[0], color='b', lw=.5)
 
@@ -522,12 +553,13 @@ def plot_spikes(
     if xlabel is not None:
         ax.set_xlabel(xlabel, fontsize=6)
     #else:
-    #    ax.set_xticklabels([])    
-    ax.margins(x=0.05, y=0.1)
+    #    ax.set_xticklabels([])   
+    ax.margins(x=0.005) 
+    #ax.margins(x=0.05, y=0.1)
     if fig is not None:
         #plt.tight_layout()
         plt.show()
-
+        
 
 def imshow_matrix(
     data: np.ndarray,

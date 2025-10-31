@@ -147,3 +147,14 @@ class Monitor:
         if prefix is None:
             prefix = ''
         return prefix
+
+    def log(self, options: Optional[Dict[str, Any]] = None) -> None:
+        """
+        Log monitor stats.
+
+        Parameters
+        ----------
+        options : dict, optional
+            Additional logging configuration.
+        """
+        pass

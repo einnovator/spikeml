@@ -8,7 +8,7 @@ import pandas as pd
 import random
 import math
 import copy
-from typing import Annotated, Any, Callable
+from typing import Annotated, Any, Callable, Optional, Sequence, Union, Tuple, Dict, List
 from pydantic import BaseModel, Field, WithJsonSchema
 import pydantic
 import ipywidgets as widgets
@@ -230,7 +230,131 @@ def signal_ranges(data, ref, E=0):
     return ranges
 
 
-def mean_per_input(data, signal, E=0):
+def stats_per_input(
+    data: Union[np.ndarray, list[np.ndarray]],
+    signal: np.ndarray,
+    f: Callable[[np.ndarray], Any],
+    E: float = 0,
+    aggregate: bool = True
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Compute statistics of `data` grouped by unique signal values.
+
+    This function groups samples based on unique input signal vectors (within a
+    numerical tolerance `E`) and applies a user-defined function `f` to compute
+    aggregate statistics (e.g., mean, variance) over each group.  
+    It can also optionally compute per-range statistics instead of aggregated ones.
+
+    Parameters
+    ----------
+    data : list[ndarray] or ndarray
+        Data values corresponding to each signal observation.
+        Must have the same number of samples (first dimension) as `signal`.
+        If a list is provided, it will be stacked along a new axis.
+    signal : ndarray of shape (T, D)
+        Input signal vectors corresponding to each data sample.
+        Each row represents a D-dimensional signal at a given time step.
+    f : callable
+        Aggregation function applied to each subset of `data`
+        corresponding to a unique signal (or signal range).
+        Examples include `np.mean`, `np.std`, or a user-defined function.
+    E : float, optional
+        Numerical tolerance used to treat two signals as identical.
+        If `E = 0` (default), grouping is based on exact equality.
+    aggregate : bool, optional
+        If True (default), computes a single aggregated value for each unique signal.
+        If False, computes statistics over sequential ranges of signal repetitions
+        using `signal_ranges`.
+
+    Returns
+    -------
+    ref : ndarray of shape (K, D)
+        Unique or representative signal vectors.
+        Each row corresponds to one signal group.
+    - When `aggregate=True`: 
+        size : ndarray of shape (K,), optional
+            Number of samples in each signal group.
+            Returned only when `aggregate=True`.
+        values : ndarray, ndarray of shape (K, ...) with one value per group.
+            Results of applying `f` to grouped data: ndarray of shape (K, ...) with one value per group.
+    - When `aggregate=False`: list of lists, where each sublist contains
+        ranges : list of tuple, Range for each representative signal vector:
+        values : list, Results of applying `f` to grouped data:
+            list of lists, where each sublist contains
+             per-range statistics for each unique signal.
+
+    Notes
+    -----
+    - This function is commonly used in analyzing spiking neural networks,
+      simulations, or time-series experiments where repeated signal inputs
+      produce multiple response samples.
+    - The grouping tolerance `E` allows robust comparison of floating-point signals.
+    - When `aggregate=False`, `signal_ranges()` is expected to provide
+      contiguous index ranges for repeated signal segments.
+
+    Examples
+    --------
+    >>> data = np.array([1.0, 2.0, 3.0, 4.0])
+    >>> signal = np.array([[0], [0], [1], [1]])
+    >>> stats_per_input(data, signal, np.mean)
+    (array([[0.],
+            [1.]]),
+     array([2, 2]),
+     array([1.5, 3.5]))
+
+    Example with non-aggregated ranges:
+    >>> stats_per_input(data, signal, np.mean, aggregate=False)
+    (array([[0.],
+            [1.]]),
+     [ [(1.5)], [(3.5)] ])
+    """
+
+
+    if type(data)==list:
+        data = np.stack(data)
+    ref = signal_unique(signal, E=E)
+    #print(ref)
+    #c = signal_changes(sx_)
+    #print(c)
+    if aggregate:
+        size = []
+        values = []
+        for i,x in enumerate(ref):
+            ii = np.argwhere(np.sum(np.abs(signal - x), axis=-1) <= E).flatten()
+            #print(i, type(ii), ii)
+            data_ = data[ii]
+            value = f(data_)
+            sz = data_.shape[0]
+            size.append(sz)
+            values.append(value)
+            #print(i, ':', x, sz, f'{mean:.4f}')
+            
+        size = np.array(size)
+        values = np.array(values)
+        return ref, size, values
+    else:
+        ranges = signal_ranges(signal, ref=ref, E=E)
+        values = []
+        for i,rr in enumerate(ranges):
+            values_ = []
+            values.append(values_)
+            for i0,i1 in rr:
+                #print(i, rr)
+                data_ = data[i0:(i1+1)]
+                value = f(data_)
+                values_.append(value)
+                #print(i, ':', x, sz, f'{mean:.4f}')
+        #size = np.array(size)
+        #values = np.array(values)
+        return ref, ranges, values 
+
+
+def mean_per_input(
+    data: Union[np.ndarray, list[np.ndarray]],
+    signal: np.ndarray,
+    E: float = 0,
+    aggregate: bool = True
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Compute mean data value grouped by unique signal inputs.
 
@@ -245,36 +369,149 @@ def mean_per_input(data, signal, E=0):
         Input signal vectors corresponding to each data point.
     E : float, optional
         Tolerance for grouping signal vectors as identical. Default is 0.
+    aggregate: bool = True
 
     Returns
     -------
-    ref : ndarray
-        Unique input signal vectors.
-    size : ndarray
-        Number of occurrences of each unique input.
-    means : ndarray
-        Mean value of `data` for each unique input.
+
+    ref : ndarray of shape (K, D)
+        Unique or representative signal vectors.
+        Each row corresponds to one signal group.
+    - When `aggregate=True`: 
+        size : ndarray of shape (K,), optional
+            Number of samples in each signal group.
+            Returned only when `aggregate=True`.
+        means : ndarray
+            Results of applying `f` to grouped data: ndarray of shape (K, ...) with one value per group.
+    - When `aggregate=False`: list of lists, where each sublist contains
+        ranges : list of tuple, Range for each representative signal vector:
+        means : list, ndarray of shape (K, ...) with one mean value per group.
     """
 
-    if type(data)==list: data = np.stack(data)
+    return stats_per_input(data, signal, np.mean, E=E, aggregate=aggregate)
 
-    #c = signal_changes(sx_)
-    #print(c)
-    ref = signal_unique(signal, E=E)
-    #print(ref)
-    #ranges = signal_ranges(ss, E=0)
-    size = []
-    means = []
-    for i,x in enumerate(ref):
-        ii = np.argwhere(np.sum(np.abs(signal - x), axis=-1) <= E).flatten()
-        #print(ii, type(ii))
-        data_ = data[ii]
-        mean = data_.mean()
-        sz = data_.shape[0]
-        size.append(sz)
-        means.append(mean)
-        #print(i, ':', x, sz, f'{mean:.4f}')
-        
-    size = np.array(size)
-    means = np.array(means)
-    return ref, size, means
+def var_per_input(
+    data: Union[np.ndarray, list[np.ndarray]],
+    signal: np.ndarray,
+    E: float = 0,
+    aggregate: bool = True
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Compute variance of data value grouped by unique signal inputs.
+
+    For each unique signal vector (within tolerance `E`), compute the
+    average of the corresponding `data` values.
+
+    Parameters
+    ----------
+    data : list[ndarray] or ndarray
+        Array of values associated with each time step of the signal.
+    signal : ndarray of shape (T, dim)
+        Input signal vectors corresponding to each data point.
+    E : float, optional
+        Tolerance for grouping signal vectors as identical. Default is 0.
+    aggregate: bool = True
+
+
+    Returns
+    -------
+    ref : ndarray of shape (K, D)
+        Unique or representative signal vectors.
+        Each row corresponds to one signal group.
+    - When `aggregate=True`: 
+        size : ndarray of shape (K,), optional
+            Number of samples in each signal group.
+            Returned only when `aggregate=True`.
+        var : ndarray
+           Variance value of `data` for each unique input.
+    - When `aggregate=False`: list of lists, where each sublist contains
+        ranges : list of tuple, Range for each representative signal vector:
+        var :  list, ndarray of shape (K, ...) with one variance value per group.
+    """
+
+    return stats_per_input(data, signal, np.var, E=E, aggregate=aggregate)
+
+def std_per_input(
+    data: np.ndarray,
+    signal: np.ndarray,
+    E: float = 0,
+    aggregate: bool = True
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Compute standard deviation of data value grouped by unique signal inputs.
+
+    For each unique signal vector (within tolerance `E`), compute the
+    average of the corresponding `data` values.
+
+    Parameters
+    ----------
+    data : list[ndarray] or ndarray
+        Array of values associated with each time step of the signal.
+    signal : ndarray of shape (T, dim)
+        Input signal vectors corresponding to each data point.
+    E : float, optional
+        Tolerance for grouping signal vectors as identical. Default is 0.
+    aggregate: bool = True
+
+    Returns
+    -------
+    ref : ndarray of shape (K, D)
+        Unique or representative signal vectors.
+        Each row corresponds to one signal group.
+    - When `aggregate=True`: 
+        size : ndarray of shape (K,), optional
+            Number of samples in each signal group.
+            Returned only when `aggregate=True`.
+        stds : ndarray
+           Standard deviation of `data` for each unique input.
+    - When `aggregate=False`: list of lists, where each sublist contains
+        ranges : list of tuple, Range for each representative signal vector:
+        stds :  list, ndarray of shape (K, ...) with one Standard deviation value per group.
+    """
+
+    return stats_per_input(data, signal, np.std, E=E, aggregate=aggregate)
+
+
+def sum_per_input(
+    data: np.ndarray,
+    signal: np.ndarray,
+    E: float = 0,
+    axis: int = 0,
+    aggregate: bool = True
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Compute standard deviation of data value grouped by unique signal inputs.
+
+    For each unique signal vector (within tolerance `E`), compute the
+    average of the corresponding `data` values.
+
+    Parameters
+    ----------
+    data : list[ndarray] or ndarray
+        Array of values associated with each time step of the signal.
+    signal : ndarray of shape (T, dim)
+        Input signal vectors corresponding to each data point.
+    E : float, optional
+        Tolerance for grouping signal vectors as identical. Default is 0.
+    axis: int = 0
+        Axis to sum over
+    aggregate: bool = True
+
+
+   Returns
+    -------
+    ref : ndarray of shape (K, D)
+        Unique or representative signal vectors.
+        Each row corresponds to one signal group.
+    - When `aggregate=True`: 
+        size : ndarray of shape (K,), optional
+            Number of samples in each signal group.
+            Returned only when `aggregate=True`.
+        sums : ndarray
+           Sume of `data` for each unique input on axis.
+    - When `aggregate=False`: list of lists, where each sublist contains
+        ranges : list of tuple, Range for each representative signal vector:
+        sums :  list, ndarray of shape (K, ...) with one sum value per group.    """
+
+    return stats_per_input(data, signal, lambda a: np.sum(a, axis=0), E=E, aggregate=aggregate)
+

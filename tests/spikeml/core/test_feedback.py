@@ -3,7 +3,7 @@ import numpy as np
 from spikeml.core.params import SSNNParams
 from spikeml.core.feedback import compute_error, compute_sg
 
-from spikeml.core.spikes import pspike, spike, plot_pspike
+from spikeml.core.spikes import pspike, spike
 
 def test_compute_error():
     params = SSNNParams()

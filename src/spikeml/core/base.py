@@ -111,6 +111,30 @@ class Component():
                 self.viewer.render(options)
 
     
+ 
+    def log(self, options: Optional[Dict[str, Any]] = None) -> None:
+        """
+        Log state.
+
+        Parameters
+        ----------
+        options : dict, optional
+            Additional logging configuration.
+        """
+        pass
+               
+    def log_monitor(self, options: Optional[Dict[str, Any]] = None) -> None:
+        """
+        Log monitor.
+
+        Parameters
+        ----------
+        options : dict, optional
+            Additional logging configuration.
+        """
+        if self.monitor:
+            self.monitor.log(options)
+            
 class Module(Component):
     """
     Abstract computational module extending `Component`.
@@ -313,6 +337,19 @@ class Composite(Module):
         """
         for ref in self.refs:
             ref.log(options=options)
+
+    def log_monitor(self, options: Optional[Dict[str, Any]] = None) -> None:
+        """
+        Log monitor of all submodules.
+
+        Parameters
+        ----------
+        options : dict, optional
+            Additional logging configuration.
+        """
+        super().log_monitor(options)
+        for ref in self.refs:
+            ref.log_monitor(options=options)
 
     def update(self, s: Any, y: Any) -> None:
         """

@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 from spikeml.core.monitor import Monitor
 from spikeml.core.viewer import MonitorViewer
-from spikeml.core.snn import SSensor
+
 
 from spikeml.plot.plot_util import plot_hist, plot_data, plot_lidata, plot_input, plot_xt, plot_mt, plot_spikes, imshow_matrix, imshow_nmatrix
 
@@ -56,6 +56,8 @@ class SensingMonitorViewer(MonitorViewer):
         super().__init__(monitor)
   
     def _get_sensor_input(self) -> Optional[np.ndarray]:
+        from spikeml.core.snn import SSensor
+        
         """Retrieve sensor input 'sx' from connected SSensor layer."""
         _parent = getattr(self.monitor.ref, '_parent', None)
         if _parent is not None:
@@ -159,15 +161,15 @@ class LIConnectorMonitorViewer(ConnectorMonitorViewer):
         """Render LI connector monitor using base connector viewer logic."""
         super().render(options=options)
         _,axs = self._axes(6)
-        self._plot_mt(['Cp'], callback=lambda ax: self._plot_input(ax), options=options, ax=axs[0])
-        self._plot_mt(['Cn'], callback=lambda ax: self._plot_input(ax), options=options, ax=axs[1])
+        self._plot_spikes(['Wp'], callback=lambda ax: self._plot_input(ax), options=options, ax=axs[0])
+        self._plot_spikes(['Wn'], callback=lambda ax: self._plot_input(ax), options=options, ax=axs[1])
+        self._plot_spikes(['Zp'], callback=lambda ax: self._plot_input(ax), options=options, ax=axs[2])
+        self._plot_spikes(['Zn'], callback=lambda ax: self._plot_input(ax), options=options, ax=axs[3])
+        self._plot_mt(['Cp'], callback=lambda ax: self._plot_input(ax), options=options, ax=axs[4])
+        self._plot_mt(['Cn'], callback=lambda ax: self._plot_input(ax), options=options, ax=axs[5])
         #self._plot_mt(['dM'], callback=lambda ax: self._plot_input(ax), options=options, ax=axs[0])
         #self._plot_mt(['dMp'], callback=lambda ax: self._plot_input(ax), options=options, ax=axs[0])
         #self._plot_mt(['dMn'], callback=lambda ax: self._plot_input(ax), options=options, ax=axs[0])
-        self._plot_mt(['Zp'], callback=lambda ax: self._plot_input(ax), options=options, ax=axs[2])
-        self._plot_mt(['Zn'], callback=lambda ax: self._plot_input(ax), options=options, ax=axs[3])
-        self._plot_mt(['Wp'], callback=lambda ax: self._plot_input(ax), options=options, ax=axs[4])
-        self._plot_mt(['Wn'], callback=lambda ax: self._plot_input(ax), options=options, ax=axs[5])
         plt.show()
         return self
     

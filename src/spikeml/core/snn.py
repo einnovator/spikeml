@@ -574,6 +574,7 @@ class SSensor(Layer):
         print(f'{self.name}: sx={self.s}; s={self.s}  -> zs={self.zs}') 
 
 
+
 class DSSNN(SSNN):
     """
     Dynamic Stochastic Spike Layer with Adaptive-Threshold

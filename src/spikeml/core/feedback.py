@@ -8,7 +8,8 @@ def compute_error(
     s: np.ndarray,
     y: np.ndarray,
     normalize: bool = False,
-    params: Optional['SSNNParams'] = None
+    params: Optional['SSNNParams'] = None,
+    mean: bool = True
 ) -> float:
     """
     Compute the mean error between target signal `s` and predicted output `y`.
@@ -27,7 +28,8 @@ def compute_error(
         Placeholder for future normalization (currently unused). Default is False.
     params : SSNNParams, optional
         Network parameters, must provide `vmax` and `vmin`. If None, a default SSNNParams is used.
-
+    mean: bool, optional
+        Aggregate error
 
     s y err
     0 0 0 
@@ -44,7 +46,7 @@ def compute_error(
     if params is None:
         params = SSNNParams()
     p = s * (params.vmax-y)+(params.vmax-s)*y
-    err = p.mean()
+    err = p.mean() if mean else p
     #print(f's: {s} ; y: {y}', f'-> err: {err:.2f}')
     return err
 
@@ -105,5 +107,5 @@ def xcompute_error(
     return err
 
 def compute_sg(err, params):
-    sg = math.exp(-err*params.e_err)
+    sg = np.exp(-err*params.e_err)
     return sg
