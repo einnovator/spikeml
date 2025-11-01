@@ -2,6 +2,9 @@ from typing import Any, List, Optional, Union, Dict
 import numpy as np
 import matplotlib.pyplot as plt
 
+
+from spikeml.utils.fmt_utils import fmt_floats, fmt_int
+
 from spikeml.core.monitor import Monitor
 from spikeml.core.viewer import MonitorViewer
 
@@ -38,15 +41,45 @@ class SSensorMonitor(Monitor):
 
     def log(self, options: Optional[Dict[str, Any]] = None) -> None:
         prefix = self._prefix()
+        print(f'{prefix}.zs:')
         ref, size, sums = sum_per_input(self.zs, self.sx, E=self.E)
+        ref_, ranges, sums_ = sum_per_input(self.zs, self.sx, E=self.E, aggregate=False)
         for i in range(0, ref.shape[0]):
-            print(f'{prefix}.zs:', f'{i}: {ref[i]} (#{size[i]}); Count: {sums[i]}')
-        ref, ranges, means = mean_per_input(self.zs, self.sx, E=self.E, aggregate=False)
+            print(f'  ', f'{i}: {ref[i]} (#{size[i]}): N: {sums[i]}')
         for i in range(0, ref.shape[0]):
-            print(f'{prefix}.zs:', f'{i}: {ref[i]} (#{ranges[i]}); Count: {sums[i]}')
+            print(f'  ', f'{i}: {ref[i]} ({ranges[i]}): N: {fmt_int(sums_[i])}')
 
 
-class SNNMonitor(Monitor):
+class SensingMonitor(Monitor):
+    """Base Monitor for sensor-input aware Monitors.
+
+    Attributes
+    ----------
+    name : Optional[str]
+        Name of this monitor instance.
+    ref : Optional[Any]
+        Reference object whose properties are being monitored.
+    """
+
+    def __init__(self, name: Optional[str] = None, ref: Optional[Any] = None, E: Optional[int]=0) -> None:
+        super().__init__(name, ref)
+        self.E = E
+
+    def _get_sensor_input(self) -> Optional[np.ndarray]:
+        from spikeml.core.snn import SSensor
+        
+        """Retrieve sensor input 'sx' from connected SSensor layer."""
+        _parent = getattr(self.ref, '_parent', None)
+        if _parent is not None:
+            _parent = getattr(_parent, '_parent', _parent)  
+            if hasattr(_parent, 'find'):         
+                sensor = _parent.find(SSensor)
+                if sensor is not None and sensor.monitor is not None:
+                    sx = getattr(sensor.monitor, 'sx', None)
+                    return sx
+        return None
+    
+class SNNMonitor(SensingMonitor):
     """Monitor for SNN (Spiking Neural Network) layer."""
 
     def __init__(self, ref: Optional[Any] = None) -> None:
@@ -58,9 +91,6 @@ class SNNMonitor(Monitor):
 
     def sample(self) -> None:
         """Sample layer properties and compute derived values."""
-        self._sample_prop('sx')
-        self._sample_prop('s')
-        self._sample_prop('zs')
         self._sample_prop('x')
         self._sample_prop('y')
         self._sample_prop('zy')
@@ -75,8 +105,19 @@ class SNNMonitor(Monitor):
         ref = self.ref
         ref.u = ref.y.sum()
         ref.us = ref.s.sum()
+        
+    def log(self, options: Optional[Dict[str, Any]] = None) -> None:
+        prefix = self._prefix()
+        print(f'{prefix}.zy:')
+        ref, size, sums = sum_per_input(self.zy, self.sx, E=self.E)
+        ref_, ranges, sums_ = sum_per_input(self.zy, self.sx, E=self.E, aggregate=False)
+        for i in range(0, ref.shape[0]):
+            print(f'  ', f'{i}: {ref[i]} (#{size[i]}): N: {sums[i]}')
+        for i in range(0, ref.shape[0]):
+            print(f'  ', f'{i}: {ref[i]} ({ranges[i]}): N: {fmt_int(sums_[i])}')
 
-class SSNNMonitor(Monitor):
+
+class SSNNMonitor(SensingMonitor):
     """Monitor for SSNN (Stochastic Spiking Neural Network) layer."""
 
     def __init__(self, ref: Optional[Any] = None) -> None:
@@ -88,9 +129,6 @@ class SSNNMonitor(Monitor):
 
     def sample(self) -> None:
         """Sample layer properties and compute derived values."""
-        self._sample_prop('sx')
-        self._sample_prop('s')
-        self._sample_prop('zs')
         self._sample_prop('y')
         self._sample_prop('zy')
         self._sample_prop('b')
@@ -104,8 +142,20 @@ class SSNNMonitor(Monitor):
         ref = self.ref
         ref.u = ref.y.sum()
         ref.us = ref.s.sum()
+        
+    def log(self, options: Optional[Dict[str, Any]] = None) -> None:
+        prefix = self._prefix()
+        print(f'{prefix}.zy:')
+        sx = self._get_sensor_input()
+        ref, size, sums = sum_per_input(self.zy, sx, E=self.E)
+        ref_, ranges, sums_ = sum_per_input(self.zy, sx, E=self.E, aggregate=False)
+        for i in range(0, ref.shape[0]):
+            print(f'  ', f'{i}: {ref[i]} (#{size[i]}): N: {sums[i]}')
+        for i in range(0, ref.shape[0]):
+            print(f'  ', f'{i}: {ref[i]} ({ranges[i]}): N: {fmt_int(sums_[i])}')
 
-class ConnectorMonitor(Monitor):
+
+class ConnectorMonitor(SensingMonitor):
     """Monitor for neural network connectors (synapses)."""
 
     def __init__(self, ref: Optional[Any] = None) -> None:
@@ -155,6 +205,8 @@ class ConnectorMonitor(Monitor):
             self.dwn.append(dw)    
         return self
     
+
+    
 class LIConnectorMonitor(ConnectorMonitor):
     """Monitor for LIConnector"""
 
@@ -178,16 +230,35 @@ class LIConnectorMonitor(ConnectorMonitor):
         self._sample_prop('Wp')
         self._sample_prop('Wn')        
         return self
+    
+    def log(self, options: Optional[Dict[str, Any]] = None) -> None:
+        prefix = self._prefix()
+        sx = self._get_sensor_input()
+        print(f'{prefix}.Wp:')
+        ref, size, sums = sum_per_input(self.Wp, sx, E=self.E)
+        ref_, ranges, sums_ = sum_per_input(self.Wp, sx, E=self.E, aggregate=False)
+        for i in range(0, ref.shape[0]):
+            print(f'  ', f'{i}: {ref[i]} (#{size[i]}): N: {fmt_int(sums[i])}')
+        for i in range(0, ref.shape[0]):
+            print(f'  ', f'{i}: {ref[i]} ({ranges[i]}): N: {fmt_int(sums_[i])}')
+        print(f'{prefix}.Wn:')
+        ref, size, sums = sum_per_input(self.Wn, sx, E=self.E)
+        ref_, ranges, sums_ = sum_per_input(self.Wn, sx, E=self.E, aggregate=False)
+        for i in range(0, ref.shape[0]):
+            print(f'  ', f'{i}: {ref[i]} (#{size[i]}): N: {fmt_int(sums[i])}')
+        for i in range(0, ref.shape[0]):
+            print(f'  ', f'{i}: {ref[i]} ({ranges[i]}): N: {fmt_int(sums_[i])}')
+
 
 class ErrorMonitor(Monitor):
     """Monitor for tracking error and mean error during training."""
 
-    def __init__(self, name: Optional[str] = None, E: Optional[int]=0) -> None:
+    def __init__(self, name: Optional[str] = None,  ref: Optional[Any] = None, E: Optional[int]=0) -> None:
         """
         Args:
             name: Optional name of the monitor.
         """
-        super().__init__(name=name)
+        super().__init__(name=name, ref=ref)
         self.s = None 
         self.err = None 
         self.merr = None
@@ -226,11 +297,12 @@ class ErrorMonitor(Monitor):
     def log(self) -> None:
         """Print error statistics."""
         prefix = self._prefix()
-        print(f'{prefix}:', f'merr: {self.merr[-1]:.4f}')
+        print(f'{prefix}:')
+        print(f'  ', f'merr: {self.merr[-1]:.4f}')
         ref, size, means = mean_per_input(self.err, self.s, E=self.E)
         for i in range(0, ref.shape[0]):
-            print(f'{prefix}:', f'{i}: {ref[i]} (#{size[i]}); Err: {means[i]:.4f}')
+            print(f'  ', f'{i}: {ref[i]} (#{size[i]}): Err: {means[i]:.4f}')
         ref, ranges, means = mean_per_input(self.err, self.s, E=self.E, aggregate=False)
         for i in range(0, ref.shape[0]):
-            print(f'{prefix}:', f'{i}: {ref[i]} (#{ranges[i]}); Err: {means[i]}')
+            print(f'  ', f'{i}: {ref[i]} ({ranges[i]}): Err: {fmt_floats(means[i], 4)}')
 

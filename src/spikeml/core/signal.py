@@ -323,6 +323,8 @@ def stats_per_input(
             ii = np.argwhere(np.sum(np.abs(signal - x), axis=-1) <= E).flatten()
             #print(i, type(ii), ii)
             data_ = data[ii]
+            #if len(data_.shape)>2:
+            #    data_ = data_.reshape(data_.shape[0], -1)
             value = f(data_)
             sz = data_.shape[0]
             size.append(sz)

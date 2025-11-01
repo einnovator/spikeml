@@ -1,6 +1,6 @@
 
 import numpy as np
-from typing import Optional, Tuple, Union, Any
+from typing import Optional, Tuple, Union, Any, Dict
 
 from spikeml.core.vector import _sum 
 from spikeml.core.base import Component, Module, Fan, Composite, Chain
@@ -537,7 +537,20 @@ class SSNN(SimpleLayer):
         if options is None or options.get('log.matrix', True):
             self.M.log(options)
             
+               
+    def log_monitor(self, options: Optional[Dict[str, Any]] = None) -> None:
+        """
+        Log monitor.
 
+        Parameters
+        ----------
+        options : dict, optional
+            Additional logging configuration.
+        """
+        super().log_monitor(options)
+        if getattr(self.M, 'log_monitor'):
+            self.M.log_monitor(options)
+            
 class SSensor(Layer):
     """
     Spike Sensor. 
@@ -800,7 +813,7 @@ def make_chain(constructor, n=None, size=None, k=2, name='nn', params=None, auto
         k = len(size)        
     for k_ in range(0, k):
         iparams = params[k] if isinstance(params, list) else params
-        name = f'nn.{k_}' if iparams.name is None else iparams.name
+        name_ = f'{name}.{k_}' if iparams.name is None else iparams.name
         size_ = size[k_] if isinstance(size, list) else size
         if k_==0:
             n_ = n
@@ -810,10 +823,10 @@ def make_chain(constructor, n=None, size=None, k=2, name='nn', params=None, auto
             nns.append(sensor)
         if not isinstance(size_, tuple) and k_>0:
             size_ = (size_,_size)
-        nnk = constructor(name, size_, iparams)
+        nnk = constructor(name_, size_, iparams)
         _size = size_[0] if isinstance(size_, tuple) else size_
         nns.append(nnk)
-    nn = Chain(nns) 
+    nn = Chain(nns, name=name) 
     return nn
 
 

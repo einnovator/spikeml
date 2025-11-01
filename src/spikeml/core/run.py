@@ -66,7 +66,7 @@ def run(
 
     err_monitor,err_viewer = None,None
     if feedback:
-        err_monitor = ErrorMonitor(name=nn.name)
+        err_monitor = ErrorMonitor(ref=nn)
         err_viewer = ErrorMonitorViewer(err_monitor)
         err_monitor.viewer = err_viewer
         
