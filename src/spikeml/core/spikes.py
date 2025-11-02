@@ -1,4 +1,5 @@
 import numpy as np
+import math
 
 def pspike(a, params):
     s = (a-params.vmin)/(params.vmax-params.vmin)

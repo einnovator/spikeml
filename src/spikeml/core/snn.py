@@ -2,7 +2,7 @@
 import numpy as np
 from typing import Optional, Tuple, Union, Any, Dict
 
-from spikeml.core.vector import _sum 
+from spikeml.utils.vector import _sum, upsample
 from spikeml.core.base import Component, Module, Fan, Composite, Chain
 from spikeml.core.params import Params, NNParams, ConnectorParams, SpikeParams, SSensorParams, SNNParams, SSNNParams
 
@@ -556,14 +556,16 @@ class SSensor(Layer):
     Spike Sensor. 
     """
 
-    def __init__(self, n=None, params=None, auto_sample=False, monitor=True, viewer=True, name=None, callback=None):
+    def __init__(self, n=None, R=1, params=None, auto_sample=False, monitor=True, viewer=True, name=None, callback=None):
         super().__init__(name=name, auto_sample=auto_sample, callback=callback)
         if n is None:
             n = params.size
-            if isinstance(n, tuple):
-                n = n[-1]
         self.s = np.zeros(n)
+        self.sx = np.zeros(n)
         self.zs = np.zeros(n)
+        self.R = R
+        self._s = np.zeros(n*R)
+        self._sx = np.zeros(n*R)
         self.shape = self.s.shape
         if params is None:
             params = SSensorParams()
@@ -576,15 +578,19 @@ class SSensor(Layer):
         self.monitor=monitor
                 
     def propagate(self, s):
-        s,sx = s[0],s[1] if isinstance(s, tuple) else (s,s)             
-        self.s = s
-        self.sx = sx
-        #self.log()
+        s,sx = (s[0],s[1]) if isinstance(s, tuple) else (s,s) 
+        R = self.s.shape[0] // s.shape[0]                    
+        self.R = R
+        self._s = s
+        self._sx = sx
+        self.s = upsample(s, R)
+        self.sx = upsample(sx, R)
         self.zs = spike(self.s, self.params)
         return self.s,self.zs
 
     def log(self, options=None):
-        print(f'{self.name}: sx={self.s}; s={self.s}  -> zs={self.zs}') 
+        _s = f'(_sx={self._sx}; _s={self._s}) ; ' if self.R>1 else ''
+        print(f'{self.name}: {_s}sx={self.sx}; s={self.s}  -> zs={self.zs}') 
 
 
 
@@ -804,50 +810,3 @@ class LIConnector2(LinearConnector):
             return (M[0]+M[1],M[0],M[1]) if type(M)==tuple else M
 
         xdisplay(Markup('_M', _m(self._M)), Markup('dM', self.dM), Markup('dMp', self.dMp), Markup('dMn', self.dMn), Markup('zc_p', self.zc[0]), Markup('zc_n', self.zc[1]), Markup('M', self.M))
-
-def make_chain(constructor, n=None, size=None, k=2, name='nn', params=None, auto_sample=True, monitor=True, viewer=True):
-    nns = []
-    if params is None:
-        params = SSNNParams()
-    if isinstance(size, list):
-        k = len(size)        
-    for k_ in range(0, k):
-        iparams = params[k] if isinstance(params, list) else params
-        name_ = f'{name}.{k_}' if iparams.name is None else iparams.name
-        size_ = size[k_] if isinstance(size, list) else size
-        if k_==0:
-            n_ = n
-            if n_ is None:
-                n_ = size_[-1] if isinstance(size_, tuple) else size_
-            sensor = SSensor(name='s', n=n_, params=params, auto_sample=auto_sample, monitor=monitor, viewer=viewer)
-            nns.append(sensor)
-        if not isinstance(size_, tuple) and k_>0:
-            size_ = (size_,_size)
-        nnk = constructor(name_, size_, iparams)
-        _size = size_[0] if isinstance(size_, tuple) else size_
-        nns.append(nnk)
-    nn = Chain(nns, name=name) 
-    return nn
-
-
-def chain_validate(nn):
-    _size = None
-    for ref in nn.refs:
-        ok = _size is None or ref.shape[-1]==_size
-        print(ref, ref.shape, 'OK' if ok else 'ERR')
-        _size = ref.shape[0]
-
-def make_ssnn_chain(k=1, size=None, name='nn', params=None, auto_sample=True, monitor=True, viewer=True):
-    def _layer(name, size, params):
-        M = LIConnector(size=size, name=name, params=params, monitor=monitor, viewer=viewer)
-        return SSNN(name=name, M=M, params=params, auto_sample=auto_sample, monitor=monitor, viewer=viewer)
-
-    return make_chain(_layer, k=k, size=size, name=name, params=params, auto_sample=auto_sample, monitor=monitor, viewer=viewer)
-
-def make_snn_chain(k=1, size=None, name='nn', params=None, auto_sample=True, monitor=True, viewer=True):
-    def _layer(name, size, params):
-        M = LIConnector(size=size, name=name, params=params, monitor=monitor, viewer=viewer)
-        return SNN(M=M, name=name, params=params, auto_sample=auto_sample, monitor=monitor, viewer=viewer)
-
-    return make_chain(_layer, k=k, size=size, name=name, params=params, auto_sample=auto_sample, monitor=monitor, viewer=viewer)
-

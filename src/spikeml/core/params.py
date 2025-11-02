@@ -1,7 +1,8 @@
-from typing import Any
+from typing import Any, Optional
 from pydantic import BaseModel, Field, WithJsonSchema
 
 from spikeml.utils.dict_util import dic2str
+from spikeml.utils.vector import UpsampleMethod
 
 # =============================================================================
 # Global Default Parameters
@@ -95,7 +96,7 @@ class NNParams(Params):
     e_err: float = Field(default=E_ERR)
     vmin: float = Field(default=VMIN, ge=0)
     vmax: float = Field(default=VMAX, ge=0)
-    name: str = Field(default=None)
+    name: Optional[str] = Field(default=None)
     #xx: Annotated[str, Field(default=None, strict=False), WithJsonSchema({'extra': 'data'})]
     
     def __str__(self):
@@ -172,14 +173,13 @@ class SSensorParams(SpikeParams):
 
     Attributes
     ----------
-    t_x : float
-        Leak time constant for the neuron membrane potential.
-    k_x : float
-        Membrane firing threshold.
-    r_sd : float
-        Standard deviation of random noise in membrane potential.
+    ssize : int
+        Number of sensor units
+    upsample_method: UpsampleMethod
+        upsampling method. Defualt: UUpsampleMethodsamplingMethod.REPEAT'
     """    
-    input_size: int = Field(default=None, gt=1)
+    upsample_method: UpsampleMethod = Field(default=UpsampleMethod.REPEAT)
+    
     pass
 
 class SNNParams(SpikeParams, ConnectorParams): #TODO: -> NNParams
