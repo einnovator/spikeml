@@ -46,9 +46,10 @@ def make_chain(constructor, input_contructor=None, output_contructor=None, size=
 
 def chain_validate(nn):
     _size = None
+    print(f'{nn.name} {nn} :')    
     for ref in nn.refs:
         ok = _size is None or ref.shape[-1]==_size
-        print(ref, ref.shape, 'OK' if ok else 'ERR')
+        print(f'  {ref.name} {ref} :', ref.shape, 'OK' if ok else 'ERR', 'OK' if nn.find(type(ref))!=None else 'NOT_FOUND')
         _size = ref.shape[0]
 
 def make_ssnn_chain(k=1, size=None, name='nn', params=None, sensor_params=None, auto_sample=True, monitor=True, viewer=True):

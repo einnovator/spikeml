@@ -1,9 +1,11 @@
 from typing import Any, List, Optional, Union, Dict
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.special import softmax
 
 
-from spikeml.utils.fmt_utils import fmt_floats, fmt_int
+from spikeml.utils.fmt_utils import fmt_float, fmt_int
+from spikeml.utils.vector import normalize_last
 
 from spikeml.core.monitor import Monitor
 from spikeml.core.viewer import MonitorViewer
@@ -11,6 +13,21 @@ from spikeml.core.viewer import MonitorViewer
 from spikeml.core.matrix import matrix_split
 from spikeml.core.signal import stats_per_input, mean_per_input, sum_per_input, var_per_input, std_per_input
 
+def print_spike_counts(ref, ranges, n, prob=False, soft_prob=False):
+    for i in range(0, ref.shape[0]):
+        ni = np.array(n)
+        _s = str(ranges[i]) if len(ni.shape)>1 else f'#{ranges[i]}'
+        s_ = []
+        if prob:
+            p = normalize_last(ni)
+            s_.append(fmt_float(p, 2))
+        if soft_prob:
+            p_ = softmax(ni, axis=-1)
+            s_.append(fmt_float(p_, 2))
+        s_ = ';'.join(s_)
+        if len(s_)>0:
+            s_ = f' ({s_})'        
+        print(f'  {i}: {ref[i]} ({_s}); N:{fmt_int(n[i])}{s_}')
 
 class SSensorMonitor(Monitor):
     """Monitor for SSensor spike sensor layer."""
@@ -42,12 +59,10 @@ class SSensorMonitor(Monitor):
     def log(self, options: Optional[Dict[str, Any]] = None) -> None:
         prefix = self._prefix()
         print(f'{prefix}.zs:')
-        ref, size, sums = sum_per_input(self.zs, self.sx, E=self.E)
-        ref_, ranges, sums_ = sum_per_input(self.zs, self.sx, E=self.E, aggregate=False)
-        for i in range(0, ref.shape[0]):
-            print(f'  ', f'{i}: {ref[i]} (#{size[i]}): N: {sums[i]}')
-        for i in range(0, ref.shape[0]):
-            print(f'  ', f'{i}: {ref[i]} ({ranges[i]}): N: {fmt_int(sums_[i])}')
+        ref, size, n = sum_per_input(self.zs, self.sx, E=self.E)
+        ref_, ranges, n_ = sum_per_input(self.zs, self.sx, E=self.E, aggregate=False)
+        print_spike_counts(ref, size, n, prob=True, soft_prob=True)
+        print_spike_counts(ref_, ranges, n_, prob=True, soft_prob=True)
 
 
 class SensingMonitor(Monitor):
@@ -109,12 +124,10 @@ class SNNMonitor(SensingMonitor):
     def log(self, options: Optional[Dict[str, Any]] = None) -> None:
         prefix = self._prefix()
         print(f'{prefix}.zy:')
-        ref, size, sums = sum_per_input(self.zy, self.sx, E=self.E)
-        ref_, ranges, sums_ = sum_per_input(self.zy, self.sx, E=self.E, aggregate=False)
-        for i in range(0, ref.shape[0]):
-            print(f'  ', f'{i}: {ref[i]} (#{size[i]}): N: {sums[i]}')
-        for i in range(0, ref.shape[0]):
-            print(f'  ', f'{i}: {ref[i]} ({ranges[i]}): N: {fmt_int(sums_[i])}')
+        ref, size, n = sum_per_input(self.zy, self.sx, E=self.E)
+        ref_, ranges, n_ = sum_per_input(self.zy, self.sx, E=self.E, aggregate=False)
+        print_spike_counts(ref, size, n, prob=True, soft_prob=True)
+        print_spike_counts(ref_, ranges, n_, prob=True, soft_prob=True)
 
 
 class SSNNMonitor(SensingMonitor):
@@ -147,12 +160,13 @@ class SSNNMonitor(SensingMonitor):
         prefix = self._prefix()
         print(f'{prefix}.zy:')
         sx = self._get_sensor_input()
-        ref, size, sums = sum_per_input(self.zy, sx, E=self.E)
-        ref_, ranges, sums_ = sum_per_input(self.zy, sx, E=self.E, aggregate=False)
-        for i in range(0, ref.shape[0]):
-            print(f'  ', f'{i}: {ref[i]} (#{size[i]}): N: {sums[i]}')
-        for i in range(0, ref.shape[0]):
-            print(f'  ', f'{i}: {ref[i]} ({ranges[i]}): N: {fmt_int(sums_[i])}')
+        if sx is None:
+            print('WARN: No sensor input')
+            return
+        ref, size, n = sum_per_input(self.zy, sx, E=self.E)
+        ref_, ranges, n_ = sum_per_input(self.zy, sx, E=self.E, aggregate=False)
+        print_spike_counts(ref, size, n, prob=True, soft_prob=True)
+        print_spike_counts(ref_, ranges, n_, prob=True, soft_prob=True)
 
 
 class ConnectorMonitor(SensingMonitor):
@@ -235,19 +249,15 @@ class LIConnectorMonitor(ConnectorMonitor):
         prefix = self._prefix()
         sx = self._get_sensor_input()
         print(f'{prefix}.Wp:')
-        ref, size, sums = sum_per_input(self.Wp, sx, E=self.E)
-        ref_, ranges, sums_ = sum_per_input(self.Wp, sx, E=self.E, aggregate=False)
-        for i in range(0, ref.shape[0]):
-            print(f'  ', f'{i}: {ref[i]} (#{size[i]}): N: {fmt_int(sums[i])}')
-        for i in range(0, ref.shape[0]):
-            print(f'  ', f'{i}: {ref[i]} ({ranges[i]}): N: {fmt_int(sums_[i])}')
+        ref, size, n = sum_per_input(self.Wp, sx, E=self.E)
+        ref_, ranges, n_ = sum_per_input(self.Wp, sx, E=self.E, aggregate=False)
+        print_spike_counts(ref, size, n)
+        print_spike_counts(ref_, ranges, n_)
         print(f'{prefix}.Wn:')
-        ref, size, sums = sum_per_input(self.Wn, sx, E=self.E)
-        ref_, ranges, sums_ = sum_per_input(self.Wn, sx, E=self.E, aggregate=False)
-        for i in range(0, ref.shape[0]):
-            print(f'  ', f'{i}: {ref[i]} (#{size[i]}): N: {fmt_int(sums[i])}')
-        for i in range(0, ref.shape[0]):
-            print(f'  ', f'{i}: {ref[i]} ({ranges[i]}): N: {fmt_int(sums_[i])}')
+        ref, size, n = sum_per_input(self.Wn, sx, E=self.E)
+        ref_, ranges, n_ = sum_per_input(self.Wn, sx, E=self.E, aggregate=False)
+        print_spike_counts(ref, size, n)
+        print_spike_counts(ref_, ranges, n_)
 
 
 class ErrorMonitor(Monitor):
@@ -300,9 +310,9 @@ class ErrorMonitor(Monitor):
         print(f'{prefix}:')
         print(f'  ', f'merr: {self.merr[-1]:.4f}')
         ref, size, means = mean_per_input(self.err, self.s, E=self.E)
+        ref, ranges, means_ = mean_per_input(self.err, self.s, E=self.E, aggregate=False)
         for i in range(0, ref.shape[0]):
-            print(f'  ', f'{i}: {ref[i]} (#{size[i]}): Err: {means[i]:.4f}')
-        ref, ranges, means = mean_per_input(self.err, self.s, E=self.E, aggregate=False)
+            print(f'  ', f'{i}: {ref[i]} (#{size[i]}): Err: {fmt_float(means[i], 4)}')
         for i in range(0, ref.shape[0]):
-            print(f'  ', f'{i}: {ref[i]} ({ranges[i]}): Err: {fmt_floats(means[i], 4)}')
+            print(f'  ', f'{i}: {ref[i]} ({ranges[i]}): Err: {fmt_float(means[i], 4)}')
 

@@ -206,3 +206,10 @@ def downsample(
         elif method=='max':        
             y = y.reshape(y.shape[0] // R, R).max(axis=1)
     return y
+
+
+def normalize_last(x):
+    k = x.sum(axis=-1, keepdims=True)
+    k[k == 0] = 1
+    x = x / k
+    return x
