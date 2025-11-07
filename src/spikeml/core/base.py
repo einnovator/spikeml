@@ -110,7 +110,33 @@ class Component():
             else:
                 self.viewer.render(options)
 
-    
+ 
+    def collect(self, criteria: Union[type, str], out: list[Component] = None) -> list[Component]:
+        """
+        Collect components by type, name.
+
+        Parameters
+        ----------
+        criteria : type | str | Module
+            Criteria to match component (type, name).
+
+        Returns
+        -------
+        list[Component]
+            List of matching components.
+        """
+        if out is None:
+            out = []
+        if isinstance(criteria, type):
+            if type(self)==criteria or isinstance(self, criteria):
+                out.append(self)
+        elif isinstance(criteria, str):
+            if criteria==seld.name:
+                out.append(self)
+        elif criteria==self:
+            out.append(self)
+        return out
+   
  
     def log(self, options: Optional[Dict[str, Any]] = None) -> None:
         """
@@ -318,6 +344,27 @@ class Composite(Module):
                 if ref==ref_:
                     return ref_
         return None
+ 
+    def collect(self, criteria: Union[type, str], out: list[Component] = None) -> list[Component]:
+        """
+        Collect submodules or components by type, name.
+
+        Parameters
+        ----------
+        criteria : type | str | Module
+            Criteria to match component (type, name).
+
+        Returns
+        -------
+        list[Component]
+            List of matching components.
+        """
+        if out is None:
+            out = []
+        if self.refs is not None:
+            for ref_ in self.refs:
+                ref_.collect(criteria, out)
+        return out
     
     def dump(self) -> None:
         """

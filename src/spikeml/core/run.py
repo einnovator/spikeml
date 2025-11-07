@@ -4,10 +4,12 @@ from pydantic import BaseModel, Field
 from typing import Any, Callable, Dict, Optional, Union, List, Tuple
 
 
+from spikeml.core.base import Component
 from spikeml.core.snn_monitor import ErrorMonitor
 from spikeml.core.snn_viewer import ErrorMonitorViewer
 from spikeml.core.feedback import compute_error, compute_sg
 from spikeml.core.spikes import spike
+from spikeml.core.snn import Connector, SimpleLayer
 
 class Context(BaseModel):
     """Execution context for neural network simulations.
@@ -27,10 +29,10 @@ def run(
     T: Optional[int] = None,
     params: Optional[Any] = None,
     feedback: bool = True,
+    report: bool = True,
     plot: bool = True,
-    callback: Optional[Callable[[Context], bool]] = None,
     log_step: int = 1,
-    silent: bool = False,
+    callback: Optional[Callable[[Context], bool]] = None,
     options: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """Run a single neural network simulation over time.
@@ -41,6 +43,7 @@ def run(
         T (int, optional): Number of time steps. Defaults to inferred from `ss` if not given.
         params: Simulation or model parameters (must define attributes `vmin`, `vmax`, `e_err`, `g`).
         feedback (bool, optional): Whether to enable error feedback loop. Defaults to True.
+        report (bool, optional): Whether to output run report. Defaults to True.
         plot (bool, optional): Whether to render plots after the run. Defaults to True.
         callback (Callable[[Context], bool], optional): Function called at each timestep.
             Return False to stop simulation early.
@@ -118,7 +121,7 @@ def run(
         if done:
             break
 
-    if not silent:
+    if report:
         if feedback:
             err_monitor.log()
         nn.log_monitor(options)
@@ -127,7 +130,7 @@ def run(
         nn.render(options)
         err_viewer.render()
 
-    result = { 'nn': nn, 'err_monitor': err_monitor, 'err_viewer': err_viewer, 't': t }
+    result = { 'nn': nn, 'err_monitor': err_monitor, 'err_viewer': err_viewer, 'context': context }
     return result
 
 def nrun(
@@ -138,41 +141,161 @@ def nrun(
     params: Optional[Any] = None,
     feedback: bool = True,
     callback: Optional[Callable[[Context], bool]] = None,
+    report_run: bool = False,
+    plot_run: bool = False,
+    report: bool = False,
     plot: bool = False,
     log_runs: int = 1,
     log_step: int = -1,
-    options: Optional[Dict[str, Any]] = None,
-    debug: bool = False
+    options: Optional[Dict[str, Any]] = None
 ) -> List[Dict[str, Any]]:
-    """Run multiple neural network simulations sequentially.
+    """
+    Execute multiple neural network simulations sequentially.
 
-    Args:
-        nn_creator (Callable[[int, int], Any]): Function to create a neural network instance for each run.
-            Receives `(run_index, total_runs)` as arguments.
-        ss (np.ndarray): Input stimulus array (shape: [T, N] or [N]).
-        runs (int, optional): Number of runs to perform. Defaults to 1.
-        T (int, optional): Number of timesteps per run. Defaults to inferred from `ss`.
-        params: Simulation parameters passed to each run.
-        feedback (bool, optional): Enable feedback loop. Defaults to True.
-        callback (Callable[[Context], bool], optional): Callback executed at each timestep.
-        plot (bool, optional): Whether to plot results after each run. Defaults to False.
-        log_runs (int, optional): Frequency of per-run logging. Defaults to 1.
-        log_step (int, optional): Logging interval during simulation steps. Defaults to -1 (disabled).
-        options (dict, optional): Extra run options.
-        debug (bool, optional): Enable detailed logging output. Defaults to False.
+    This function repeatedly creates and runs neural network instances using a
+    user-supplied constructor. Each simulation can share the same input stimulus
+    but operate with independent network initializations or parameters.
 
-    Returns:
-        list[dict]: List of result dictionaries (same structure as returned by `run()`).
+    Parameters
+    ----------
+    nn_creator : callable
+        Function that creates a neural network instance for a given run.
+        Called as `nn_creator(run_index, total_runs)` for each run.
+    ss : ndarray
+        Input stimulus array, of shape `(T, N)` or `(N,)`, representing the
+        time series or feature inputs to the network.
+    runs : int, optional
+        Number of independent runs to execute. Default is 1.
+    T : int, optional
+        Number of time steps per run. If `None`, inferred from `ss`.
+    params : Any, optional
+        Simulation parameters passed to each run.
+    feedback : bool, optional
+        Whether to enable network feedback during simulation. Default is True.
+    callback : callable, optional
+        Optional function called at each simulation step with the current
+        `Context` object. If it returns `False`, the run may terminate early.
+    report_run : bool, optional
+        Whether to display a textual report after each run. Default is False.
+    plot_run : bool, optional
+        Whether to plot intermediate results after each run. Default is False.
+    report : bool, optional
+        Whether to output a combined summary report after all runs. Default is False.
+    plot : bool, optional
+        Whether to generate final plots for aggregated results. Default is False.
+    log_runs : int, optional
+        Frequency (in runs) at which progress and debug logs are printed.
+        Default is 1 (log every run).
+    log_step : int, optional
+        Interval of step-level logging within each run. `-1` disables step logging.
+        Default is -1.
+    options : dict, optional
+        Additional keyword arguments passed to each call of `run()`.
+
+    Returns
+    -------
+    results : list of dict
+        List containing the result dictionary from each run, matching the
+        structure returned by the underlying `run()` function.
+
+    Notes
+    -----
+    - Each run creates a fresh network instance using `nn_creator`.
+    - Useful for performing Monte Carlo simulations or parameter sweeps.
+    - Logging can be controlled via `log_runs` and `log_step`.
+
+    Examples
+    --------
+    >>> def create_net(i, total):
+    ...     return make_ssnn_chain(name=f'nn{n}', size=size, params=params)
+    >>> ss = signal_pulse(2, T=100, L=3, s=[0,1], value=.5)
+    >>> params = SSNNParams()
+    >>> results = nrun(nn_creator= create_net, runs=3, ss=ss, params=params)
+    >>> len(results)
     """
     results = []
     for n in range(0,runs):
-        debug_ = debug and (log_runs>0 and n%log_runs==0)
+        debug_ = (log_runs>0 and n%log_runs==0)
         if debug_:
             print(f'run: {n+1}/{runs}')
         nn = nn_creator(n, runs)
-        result = run(nn, ss, T=T, params=params, DY = 0, feedback=True, callback=callback, plot=plot, log_step=log_step, options=options, debug=debug)
+        result = run(nn, ss, T=T, params=params, feedback=feedback, callback=callback, report=report_run, plot=plot_run, log_step=log_step, options=options)
         if debug_:
             print(f'  -> {result}')
         results.append(result) 
-    return results  
+    if report:
+        pass
+    if plot:
+        pass
+    
+    return Results(results)
 
+
+
+class Results():
+    """Results from Multiple Runs.
+    """
+    results = []
+    def __init__(self,
+                 results: list = None,
+    ) -> None:
+        #super().__init__()
+        self.results = results
+        
+    def collect(self, criteria: Union[type, str], out: list[Component] = None) -> list[Component]:
+        """
+        Collect submodules or components by type, name.
+
+        Parameters
+        ----------
+        criteria : type | str | Module
+            Criteria to match component (type, name).
+
+        Returns
+        -------
+        list[Component]
+            List of matching components.
+        """
+        if out is None:
+            out = []
+        if self.results is not None:
+            for n, result in enumerate(self.results):
+                obj = result['nn']
+                out_ = obj.collect(criteria)
+                out.append(out_)
+        return out
+
+    def __getitem__(self, index):
+        return self.results[index]
+    
+    def len(self):
+        return len(self.results) if self.results is not None else 0
+
+    def __len__(self):
+        return self.len()
+
+    def log_monitor(self):
+        for n, result in enumerate(self.results):
+            result['err_monitor'].log()
+
+    def plot_monitor(self, options=None):
+        for n, result in enumerate(self.results):
+            result['nn'].viewer.render(options=options)
+
+    def plot_err_monitor(self, options=None):
+        for n, result in enumerate(self.results):
+            result['err_viewer'].render(options=options)
+            
+    def __repr__(self):
+        return f"{type(self).__name__}({self.results!r})"
+
+    def get_components(self, _type):
+        conns = self.collect(_type)
+        connsT = list(map(list, zip(*conns)))
+        return connsT
+
+    def get_connectors(self):
+        return self.get_components(Connector)
+    
+    def get_layers(self):
+        return self.get_components(SimpleLayer)

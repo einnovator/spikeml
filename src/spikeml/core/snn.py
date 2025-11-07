@@ -312,11 +312,11 @@ class Layer(Module):
 
 class SimpleLayer(Module):
     """
-    Base class for layers with an internal matrix `M`.
+    Base class for layers with an internal connector or matrix `M`.
 
     Attributes:
-        M: Internal matrix representing weights or connectivity.
-        shape: Shape of the matrix `M`.
+        M: Internal connector or matrix representing weights or connectivity.
+        shape: Shape of the connector or matrix `M`.
         n: Number of neurons (first dimension of `M`).
     """
 
@@ -337,6 +337,28 @@ class SimpleLayer(Module):
         if self.shape is not None:
             self.n = self.shape[0]
         
+    def collect(self, criteria: Union[type, str], out: list[Component] = None) -> list[Component]:
+        """
+        Collect components by type, name.
+
+        Parameters
+        ----------
+        criteria : type | str | Module
+            Criteria to match component (type, name).
+
+        Returns
+        -------
+        list[Component]
+            List of matching components.
+        """
+        if out is None:
+            out = []
+        super().collect(criteria, out)
+        if self.M and getattr(self.M,'collect') is not None:
+            self.M.collect(criteria, out)
+        return out
+   
+
     def render(self, options: Optional[dict] = None) -> None:
         """
         Render the layer and its matrix if available.
