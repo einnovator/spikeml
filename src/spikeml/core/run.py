@@ -289,13 +289,30 @@ class Results():
     def __repr__(self):
         return f"{type(self).__name__}({self.results!r})"
 
-    def get_components(self, _type):
-        conns = self.collect(_type)
-        connsT = list(map(list, zip(*conns)))
-        return connsT
+    def get_components(self, _type, as_map=False):
+        objs = self.collect(_type)
+        objsT = list(map(list, zip(*objs)))
+        if as_map:
+            out = {}
+            for i,layer_runs in enumerate(objsT):
+                obj = layer_runs[0]
+                name = obj.name
+                if name is None:
+                    name =  f"{type(obj).__name__}.{i}"
+                out[name] = layer_runs
+            return out
+        return objsT
 
-    def get_connectors(self):
-        return self.get_components(Connector)
+    def get_connectors(self, as_map=False):
+        return self.get_components(Connector, as_map=as_map)
     
-    def get_layers(self):
-        return self.get_components(SimpleLayer)
+    def get_layers(self, as_map=False):
+        return self.get_components(SimpleLayer, as_map=as_map)
+
+    def get_connector_tensors(self, as_map=False):
+        conns = self.get_connectors(as_map)
+        if as_map:
+            MM = { name : np.array([c.M for c in layer_runs]) for name, layer_runs in conns.items() }
+        else:
+            MM = [ np.array([c.M for c in layer_runs]) for layer_runs in conns]
+        return MM

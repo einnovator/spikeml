@@ -336,8 +336,7 @@ class Composite(Module):
         if self.refs is not None:
             for ref_ in self.refs:
                 if isinstance(ref, type):
-                    if type(ref_)==ref:
-                        return ref_
+                    return ref_
                 if isinstance(ref, str):
                     if ref==ref_.name:
                         return ref_

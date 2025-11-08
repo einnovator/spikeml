@@ -543,7 +543,7 @@ class SSNN(SimpleLayer):
         self.b = bias_update(self.b, self.y, params=self.params)        
 
         #if debug:
-        #    print('s:', s, '; zs:', zs,  '-> y:', y, ' ; zy:', zy)  
+        #   print('s:', s, '; zs:', zs,  '-> y:', y, ' ; zy:', zy, ' ; b:', self.b)  
         
         return self.y,self.zy
 

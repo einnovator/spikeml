@@ -89,8 +89,10 @@ class SensingMonitor(Monitor):
             _parent = getattr(_parent, '_parent', _parent)  
             if hasattr(_parent, 'find'):         
                 sensor = _parent.find(SSensor)
+                #print('!', self, '_parent:', _parent, 'sensor:', sensor)
                 if sensor is not None and sensor.monitor is not None:
                     sx = getattr(sensor.monitor, 'sx', None)
+                    #print('  !sx:', len(sx) if sx is not None else None)
                     return sx
         return None
     
@@ -161,7 +163,7 @@ class SSNNMonitor(SensingMonitor):
         print(f'{prefix}.zy:')
         sx = self._get_sensor_input()
         if sx is None:
-            print('WARN: No sensor input')
+            print('WARN: No sensor input', self)
             return
         ref, size, n = sum_per_input(self.zy, sx, E=self.E)
         ref_, ranges, n_ = sum_per_input(self.zy, sx, E=self.E, aggregate=False)
@@ -248,6 +250,9 @@ class LIConnectorMonitor(ConnectorMonitor):
     def log(self, options: Optional[Dict[str, Any]] = None) -> None:
         prefix = self._prefix()
         sx = self._get_sensor_input()
+        if sx is None:
+            print('WARN: No sensor input:', self)
+            return
         print(f'{prefix}.Wp:')
         ref, size, n = sum_per_input(self.Wp, sx, E=self.E)
         ref_, ranges, n_ = sum_per_input(self.Wp, sx, E=self.E, aggregate=False)

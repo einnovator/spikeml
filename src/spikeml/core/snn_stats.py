@@ -1,4 +1,5 @@
 import numpy as np
+from scipy import stats
 from typing import Any, List, Optional, Union, Tuple
 
 def connector_stats(
@@ -72,3 +73,76 @@ def connector_stats(
     sd = np.sqrt(sd2)
 
     return m, sd
+
+
+
+def htest_connections(MM, ij1, ij2, name=None, normal=False, alpha=0.05):
+    """
+    Hypothesis test for connection values.
+    Automatically method and run the appropriate hypothesis test.
+    
+    Parameters
+    ----------
+    MM : np.array (tensor) [runs, i, j])
+    ij1: tuple (i,j) : matrix (row,column) in group1
+    ij2: tuple (i,j) : matrix (row,column) in group2
+    paired : bool, default=False
+        Whether samples are paired (e.g., before/after).
+    normal : bool, default=True
+        Whether data is approximately normally distributed.
+        If False, a nonparametric test is used.
+    alpha : float, default=0.05
+        Significance level for hypothesis decision.
+        
+    Returns
+    -------
+    dict
+        Dictionary with:
+            'name': name of layer
+            'test': name of test
+            'stat': test statistic
+            'p': p-value
+            'reject': whether null hypothesis is rejected
+    """    
+    
+    i1,j1 = ij1
+    i2,j2 = ij2
+    c1 = MM[:,i1,j1]
+    c2 = MM[:,i2,j2]
+
+    if normal:
+        stat, p = stats.ttest_ind(c1, c2, equal_var=False)
+        test = "Independent t-test (Welch)"
+    else:
+        stat, p = stats.mannwhitneyu(c1, c2)
+        test = "Mann-Whitney U test"
+
+    reject = p < alpha
+            
+    print(f'{name}: [{i1},{j1}] x [{i2},{j2}]]')          
+    print('  c1:', c1)
+    print('  c2:', c2)
+    print("  test:", test)
+    print("  statistic:", stat)
+    print("  p-value:", p)
+    print("  reject_H0:", reject)
+    
+
+    return {
+        "name": name,
+        "test": test,
+        "stat": stat,
+        "p": p,
+        "reject": reject
+    }
+    return t_stat, p_value
+
+def htest_connector_identity(results, alpha=0.05):
+    conns = results.get_connector_tensors(as_map=True)
+    for i, (name, MM) in  enumerate(conns.items()):
+        shape = MM[0].shape
+        for j in range(0, shape[1]):
+            for i in range(0, shape[0]):
+                if i==j:
+                    continue
+                htest_connections(MM, (j,j), (i,j), name, alpha=0.05)
