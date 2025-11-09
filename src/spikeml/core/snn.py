@@ -608,6 +608,7 @@ class SSensor(Layer):
         self.s = upsample(s, R)
         self.sx = upsample(sx, R)
         self.zs = spike(self.s, self.params)
+        
         return self.s,self.zs
 
     def log(self, options=None):

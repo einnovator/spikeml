@@ -2,7 +2,7 @@
 from typing import Any, List, Optional, Union
 import numpy as np
 import matplotlib.pyplot as plt
-
+import math
 from spikeml.core.monitor import Monitor
 from spikeml.core.viewer import MonitorViewer
 
@@ -160,7 +160,13 @@ class LIConnectorMonitorViewer(ConnectorMonitorViewer):
     def render(self, options: Optional[Union[dict, List[str], str]] = None) -> None:
         """Render LI connector monitor using base connector viewer logic."""
         super().render(options=options)
-        _,axs = self._axes(6)
+        Wp = self. _get('Wp')
+        if Wp is None or len(Wp)==0:
+            return
+        n = Wp[0].shape[0]*Wp[0].shape[1]
+        height = max(1,math.sqrt(n))
+        #print('!n:', n, 'height:', height)
+        _,axs = self._axes(6, height=height)
         self._plot_spikes(['Wp'], callback=lambda ax: self._plot_input(ax), options=options, ax=axs[0])
         self._plot_spikes(['Wn'], callback=lambda ax: self._plot_input(ax), options=options, ax=axs[1])
         self._plot_spikes(['Zp'], callback=lambda ax: self._plot_input(ax), options=options, ax=axs[2])

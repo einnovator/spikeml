@@ -382,6 +382,20 @@ class Composite(Module):
             Additional logging configuration.
         """
         for ref in self.refs:
+            if options is not None:
+                _types = options.get('types', None)
+                if _types is not None:
+                    b = False
+                    for _type in _types:
+                        if isinstance(ref, _type):
+                            b = True
+                            break
+                    if not b:
+                        continue 
+                _names = options.get('names', None)
+                if _names is not None:
+                    if ref.name is None or ref.name not in _names:
+                        continue 
             ref.log(options=options)
 
     def log_monitor(self, options: Optional[Dict[str, Any]] = None) -> None:

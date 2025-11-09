@@ -121,7 +121,9 @@ class SNNMonitor(SensingMonitor):
         """Compute aggregated values from the layer (e.g., total spikes, outputs)."""
         ref = self.ref
         ref.u = ref.y.sum()
-        ref.us = ref.s.sum()
+        ref.us = ref.s.sum()        
+        #ref.zym = np.max(ref.zy, axis=1)
+
         
     def log(self, options: Optional[Dict[str, Any]] = None) -> None:
         prefix = self._prefix()
@@ -169,7 +171,7 @@ class SSNNMonitor(SensingMonitor):
         ref_, ranges, n_ = sum_per_input(self.zy, sx, E=self.E, aggregate=False)
         print_spike_counts(ref, size, n, prob=True, soft_prob=True)
         print_spike_counts(ref_, ranges, n_, prob=True, soft_prob=True)
-
+        
 
 class ConnectorMonitor(SensingMonitor):
     """Monitor for neural network connectors (synapses)."""
