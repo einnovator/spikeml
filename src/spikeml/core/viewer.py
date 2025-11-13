@@ -233,12 +233,13 @@ class MonitorViewer():
     def _plot_spikes(
         self,
         keys: Union[str, List[str]],
+        tt: Optional[Any] = None, 
         callback: Optional[Callable[[plt.Axes], None]] = None,
         options: Optional[Union[str, List[str], Dict[str, Any]]] = None,
         ax: Optional[plt.Axes] = None
     ) -> None:
         """Plot spike raster data."""
-        self._render(lambda data, key, title, index: plot_spikes(data, title=title, callback=callback, ax=self._ax(ax, index)), keys, options=options)
+        self._render(lambda data, key, title, index: plot_spikes(data, tt=tt, title=title, callback=callback, ax=self._ax(ax, index)), keys, options=options)
 
     def _imshow_nmatrix(
         self,

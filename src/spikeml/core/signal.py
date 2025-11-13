@@ -146,7 +146,7 @@ def encode_onehot(ss, nsym):
             a[j,:] = e            
     return a
 
-def signal_changes(data):
+def signal_changes(data, E=0):
     """
     Detect time indices where the signal changes.
 
@@ -154,6 +154,9 @@ def signal_changes(data):
     ----------
     data : list[ndarray] or ndarray
         Time series data of shape (T, dim), or a list of such arrays.
+    E : float, optional
+        Tolerance for considering two vectors equivalent.
+        Default is 0 (exact match).
 
     Returns
     -------
@@ -161,9 +164,18 @@ def signal_changes(data):
         Indices (time steps) where the signal changes value compared to the previous step.
     """
     
-    if type(data)==list: data = np.stack(data)
-    dv = np.any(data[1:] != data[:-1], axis=1)
+    if type(data)==list:
+        data = np.stack(data)
+    if E > 0:
+        # Compute differences between consecutive time steps
+        diff = np.abs(data[1:] - data[:-1])
+        # For multi-dimensional data, check if *any* component changes beyond E
+        dv = np.any(diff > E, axis=1)
+    else:
+        dv = np.any(data[1:] != data[:-1], axis=1)
+    # Return indices (shifted by +1 to refer to the changed position)
     x = np.where(dv)[0] + 1
+
     return x
 
 def signal_unique(data, E=0):
@@ -228,6 +240,8 @@ def signal_ranges(data, ref, E=0):
         l.append((i0,ii[-1]))
         ranges.append(l)
     return ranges
+
+
 
 
 def stats_per_input(

@@ -441,13 +441,14 @@ def plot_mt(
 
 def plot_spikes(
     data: np.ndarray,
+    tt: Optional[Any] = None, 
     title: Optional[str] = None,
     name: Optional[str] = None,
     xlabel: Optional[str] = None,
-    callback: Optional[Callback] = None,
+    callback: Optional[Union[Callback, list[Callback]]] = None,
     ax: Optional[Axes] = None,
     width: float =10,
-    heigth: float = 1
+    height: Optional[float] = None
 ) -> None:
     """
     Plot spike trains as a raster plot with vertical markers over time.
@@ -463,6 +464,8 @@ def plot_spikes(
         Supported shapes:
             - (T, N): N neurons over T time steps.
             - (T, M, N): M groups (or layers) of N neurons over T time steps.
+    tt: np.array
+        Time of signal changes to output spike counts per time-window.
     title : Optional[str], default=None
         Title of the plot.
     name : Optional[str], default=None
@@ -477,8 +480,9 @@ def plot_spikes(
         axes are created.
     width : float, default=10
         Figure width in inches (used only if `ax` is None).
-    heigth : float, default=1
+    height : float, default=None
         Figure height in inches (used only if `ax` is None).
+        If None, height is computed automatically from data dimensions
 
     Returns
     -------
@@ -494,54 +498,80 @@ def plot_spikes(
     
     if type(data)==list: data = np.stack(data)
 
+
+    if len(data.shape)==3:
+        n = data.shape[1]*data.shape[2]
+    else:
+        n = data.shape[1]
+    if height is None:
+        height = n/4
     fig = None
     if ax is None:
         nrows, ncols = 1, 1
-        fig, axs = plt.subplots(nrows, ncols, figsize=(width*ncols, heigth*nrows))
+        fig, axs = plt.subplots(nrows, ncols, figsize=(width*ncols, height*nrows))
         ax = axs if nrows==1 and ncols==1 else axs[i] if nrows==1 else axs[0][0]
 
     if name is None:
         name = ""
     hpad = 1
     vpad = 5
-    height = 10
+    sheight = 10
     #ax.set_xlim(0, data.shape[0])
-    if len(data.shape)==3:
-        n = data.shape[1]*data.shape[2]
-    else:
-        n = data.shape[1]
-    ax.set_ylim(0, (n)*(height+vpad))
+
+    ax.set_ylim(0, (n)*(sheight+vpad))
     xmin,xmax = ax.get_xlim()
     ymin,ymax = ax.get_ylim()
 
     yy = []
+
+    if tt is not None:
+        if tt[0]!=0:
+            tt = np.array([0] + tt.tolist())
+    
     if len(data.shape)==3:
         for i in range(0, data.shape[1]):
             for j in range(0, data.shape[2]):
-                y = ymax-(j+i*data.shape[1]+1)*(height+vpad) 
+                y = ymax-(j+i*data.shape[2]+1)*(sheight+vpad) 
                 yy.append(y)
                 indexes = np.nonzero(data[:,i,j])[0]
                 x = indexes*hpad
-                ax.vlines(x, y, y+height, color='b')
+                ax.vlines(x, y, y+sheight, color='b')
                 ax.text(0, y, f'[{i},{j}]  ', ha='right', fontsize=6)
                 ax.text(data.shape[0], y, f'  {x.shape[0]} ', ha='left', fontsize=6)
+                if tt is not None:
+                    for k in range(0, len(tt)):
+                        t0 = tt[k]
+                        t1 = tt[k+1] if k<len(tt)-1 else data.shape[0]
+                        n = data[t0:(t1-1), i, j].sum()
+                        ax.text(t0, y+(sheight*.8), f'{n}', ha='left', fontsize=5, color='k')
+                        
         ax.hlines(yy, 0, data.shape[0], color='b', lw=.5)
 
     else:
         for i in range(0, data.shape[1]):
-            y = ymax-(i+1)*(height+vpad) 
+            y = ymax-(i+1)*(sheight+vpad) 
             yy.append(y)
             indexes = np.nonzero(data[:,i])[0]
             #print(i, indexes, data[:,i])
             x = indexes*hpad
-            ax.vlines(x, y, y+height, color='b')
+            ax.vlines(x, y, y+sheight, color='b')
             ax.text(0, y, f'{i}  ', ha='right', fontsize=6)
             ax.text(data.shape[0], y, f'   {x.shape[0]} ', ha='left', fontsize=6)
+            if tt is not None:
+                for k in range(0, len(tt)):
+                    t0 = tt[k]
+                    t1 = tt[k+1] if k<len(tt)-1 else data.shape[0]
+                    n = data[t0:(t1-1), i].sum()
+                    ax.text(t0, y+(sheight*.95), f'{n}', ha='left', fontsize=5, color='k')
 
         ax.hlines(yy, 0, data.shape[0], color='b', lw=.5)
 
     if callback is not None:
-        callback(ax)
+        if isinstance(callback, list):
+            for callback_ in callback:
+                callback_(ax)
+        else:
+            callback(ax)
             
     if title is not None:
         tstyle = { 'fontsize': 8 }
