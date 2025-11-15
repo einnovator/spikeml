@@ -15,7 +15,7 @@ from spikeml.core.signal import stats_per_input, mean_per_input, sum_per_input, 
 
 def print_spike_counts(ref, ranges, n, prob=False, soft_prob=False):
     for i in range(0, ref.shape[0]):
-        ni = np.array(n)
+        ni = np.array(n[i])
         _s = str(ranges[i]) if len(ni.shape)>1 else f'#{ranges[i]}'
         s_ = []
         if prob:
@@ -96,6 +96,48 @@ class SensingMonitor(Monitor):
                     return sx
         return None
     
+    def _log(self, options: Optional[Dict[str, Any]] = None) -> None:
+        sx = self._get_sensor_input()
+        if sx is None:
+            print('WARN: No sensor input', self)
+            return
+        ref, size, n = sum_per_input(self.zy, sx, E=self.E)
+        ref_, ranges, n_ = sum_per_input(self.zy, sx, E=self.E, aggregate=False)
+        print_spike_counts(ref, size, n, prob=True, soft_prob=True)
+        print_spike_counts(ref_, ranges, n_, prob=True, soft_prob=True)
+
+
+    
+class LayerMonitor(SensingMonitor):
+    """Generic Monitor for a NN layer."""
+
+    def __init__(self, ref: Optional[Any] = None) -> None:
+        """
+        Args:
+            ref: Reference to the SNN layer being monitored.
+        """
+        super().__init__(ref=ref)
+
+    def sample(self) -> None:
+        """Sample layer properties and compute derived values."""
+        self._sample_prop('y')
+        self._sample_prop('zy')
+        self.compute()
+        self._sample_prop('u')
+        self._sample_prop('us')
+
+    def compute(self) -> None:
+        """Compute aggregated values from the layer (e.g., total spikes, outputs)."""
+        ref = self.ref
+        ref.u = ref.y.sum()
+        ref.us = ref.s.sum()        
+
+        
+    def log(self, options: Optional[Dict[str, Any]] = None) -> None:
+        prefix = self._prefix()
+        print(f'{prefix}.zy:')
+        super()._log(options)
+
 class SNNMonitor(SensingMonitor):
     """Monitor for SNN (Spiking Neural Network) layer."""
 
@@ -128,10 +170,7 @@ class SNNMonitor(SensingMonitor):
     def log(self, options: Optional[Dict[str, Any]] = None) -> None:
         prefix = self._prefix()
         print(f'{prefix}.zy:')
-        ref, size, n = sum_per_input(self.zy, self.sx, E=self.E)
-        ref_, ranges, n_ = sum_per_input(self.zy, self.sx, E=self.E, aggregate=False)
-        print_spike_counts(ref, size, n, prob=True, soft_prob=True)
-        print_spike_counts(ref_, ranges, n_, prob=True, soft_prob=True)
+        super()._log(options)
 
 
 class SSNNMonitor(SensingMonitor):
@@ -163,15 +202,7 @@ class SSNNMonitor(SensingMonitor):
     def log(self, options: Optional[Dict[str, Any]] = None) -> None:
         prefix = self._prefix()
         print(f'{prefix}.zy:')
-        sx = self._get_sensor_input()
-        if sx is None:
-            print('WARN: No sensor input', self)
-            return
-        ref, size, n = sum_per_input(self.zy, sx, E=self.E)
-        ref_, ranges, n_ = sum_per_input(self.zy, sx, E=self.E, aggregate=False)
-        print_spike_counts(ref, size, n, prob=True, soft_prob=True)
-        print_spike_counts(ref_, ranges, n_, prob=True, soft_prob=True)
-        
+        super()._log(options)
 
 class ConnectorMonitor(SensingMonitor):
     """Monitor for neural network connectors (synapses)."""

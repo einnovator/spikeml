@@ -319,6 +319,16 @@ class Composite(Module):
             for ref in refs:
                 ref._parent = self
 
+    def append(self, ref):
+        if self.refs is None:
+            self.refs = []
+        if isinstance(ref, list):
+            for ref_ in ref:
+                self.append(ref_)
+            return
+        self.refs.append(ref)
+        ref._parent = self
+        
     def find(self, ref: Union[type, str, Module]) -> Optional[Module]:
         """
         Find a submodule by type, name, or reference.

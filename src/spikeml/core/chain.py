@@ -60,7 +60,8 @@ def make_ssnn_chain(k=1, size=None, name='nn', params=None, sensor_params=None, 
     def _sensor(name, size, params):
         return SSensor(name=name, n=size, params=sensor_params, auto_sample=auto_sample, monitor=monitor, viewer=viewer)
 
-    return make_chain(_layer, _sensor, k=k, size=size, name=name, params=params, auto_sample=auto_sample, monitor=monitor, viewer=viewer)
+    chain = make_chain(_layer, _sensor, k=k, size=size, name=name, params=params, auto_sample=auto_sample, monitor=monitor, viewer=viewer)
+    return chain
 
 def make_snn_chain(k=1, size=None, name='nn', params=None, auto_sample=True, monitor=True, viewer=True):
     def _layer(name, size, params):
@@ -71,4 +72,17 @@ def make_snn_chain(k=1, size=None, name='nn', params=None, auto_sample=True, mon
         return SSensor(name=name, n=size, params=sensor_params, auto_sample=auto_sample, monitor=monitor, viewer=viewer)
 
     return make_chain(_layer, k=k, size=size, name=name, params=params, auto_sample=auto_sample, monitor=monitor, viewer=viewer)
+
+
+def make_ssnn_echain(k=1, size=None, name='nn', body=None, params=None, sensor_params=None, auto_sample=True, monitor=True, viewer=True):
+    chain = make_ssnn_chain(k=k, size=size, name=name, params=params, sensor_params=sensor_params, auto_sample=auto_sample, monitor=monitor, viewer=viewer)
+    if body is not None:
+        chain.append(body)
+    return chain
+
+def make_snn_echain(k=1, size=None, name='nn', params=None, auto_sample=True, monitor=True, viewer=True):
+    chain = make_snn_chain(k=k, size=size, name=name, params=params, sensor_params=sensor_params, auto_sample=auto_sample, monitor=monitor, viewer=viewer)
+    if body is not None:
+        chain.append(body)
+    return chain
 

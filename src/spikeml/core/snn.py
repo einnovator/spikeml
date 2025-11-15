@@ -6,8 +6,8 @@ from spikeml.utils.vector import _sum, upsample
 from spikeml.core.base import Component, Module, Fan, Composite, Chain
 from spikeml.core.params import Params, NNParams, ConnectorParams, SpikeParams, SSensorParams, SNNParams, SSNNParams
 
-from spikeml.core.snn_monitor import SSensorMonitor, SNNMonitor, SSNNMonitor, ConnectorMonitor, LIConnectorMonitor
-from spikeml.core.snn_viewer import  SSensorMonitorViewer, SNNMonitorViewer, SSNNMonitorViewer, ConnectorMonitorViewer, LIConnectorMonitorViewer, ErrorMonitorViewer
+from spikeml.core.snn_monitor import SSensorMonitor, LayerMonitor, SNNMonitor, SSNNMonitor, ConnectorMonitor, LIConnectorMonitor
+from spikeml.core.snn_viewer import  SSensorMonitorViewer, LayerMonitorViewer, SNNMonitorViewer, SSNNMonitorViewer, ConnectorMonitorViewer, LIConnectorMonitorViewer, ErrorMonitorViewer
 
 from spikeml.core.spikes import pspike, spike
 from spikeml.core.matrix import matrix_split, normalize_matrix, _mult, cmask, cmask2, matrix_init, matrix_init2
@@ -330,7 +330,7 @@ class SimpleLayer(Module):
                  callback: Optional[Any] = None) -> None:
         super().__init__(name=name, params=params, auto_sample=auto_sample, monitor=monitor, viewer=viewer, callback=callback)
         self.M = M
-        if M is not None:
+        if isinstance(M, Connector):
             M._parent = self
         self.shape = self.M.shape if M is not None else None
         self.n = None
@@ -369,15 +369,83 @@ class SimpleLayer(Module):
         super().render(options)
         if self.M is not None:
             if options is None or options.get('render.matrix', True):
-                self.M.render(options)
+                if isinstance(self.M, Connector):
+                    self.M.render(options)
 
     def sample(self) -> None:
         """
         Sample the internal state of the layer and its matrix if available.
         """
         super().sample()
-        if self.M is not None:
+        if isinstance(self.M, Connector):
             self.M.sample()
+
+class LinearLayer(SimpleLayer):
+    """
+    Linear layer.
+    
+    Attributes:
+        M: Connector or matrix
+        s, zs: Last Input and spike output.
+        y, zy: Last Output potentials and output spikes.
+        params: Layer parameters.
+        monitor: Optional monitoring object.
+        viewer: Optional viewer object.
+    """
+
+    def __init__(self,
+                 M: Optional[Any] = None,
+                 params: Optional[Any] = None,
+                 auto_sample: bool = False,
+                 monitor: Union[bool, Any] = True,
+                 viewer: Union[bool, Any] = True,
+                 name: Optional[str] = None,
+                 callback: Optional[Any] = None) -> None:
+        super().__init__(M=M, name=name, auto_sample=auto_sample, callback=callback)
+        self.s,self.zs = None,None
+        self.y,self.zy = None,None
+        self.r = None
+        if params is None:
+            params = NNParams()
+        self.params = params
+        if monitor==True:
+            monitor = LayerMonitor(ref=self)
+        if viewer==True:
+            viewer = LayerMonitorViewer(monitor)
+        self.viewer=viewer
+        self.monitor=monitor
+                
+    def propagate(self, s: Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Propagate input spikes through the network and update neuron potentials.
+        
+        Args:
+            s: Input array or tuple (s, zs) of vector pair (rate, spikes).
+
+        Returns:
+            Tuple containing updated potentials (y) and spikes (zy).
+        """
+        s, zs = s if isinstance(s, tuple) else (s, None)
+        self.s, self.zs = s, zs
+
+        y = self.M @ s
+        zy = self.M @ zs if zs is not None else None
+
+        if isinstance(self.M, Connector):
+            self.M.propagate(zs, zy)
+
+        self.y, self.zy = y, zy
+        
+        return self.y,self.zy
+
+    def log(self, options=None):
+        print(f'{self.name}: s={self.s} | zs={self.zs}-> y={self.y} | zy={self.zy}') 
+
+        if options is None or options.get('log.matrix', True):
+            if isinstance(self.M, Connector):
+                self.M.log(options)
+            else:
+                print(self.M)
 
 class SNN(SimpleLayer):
     """

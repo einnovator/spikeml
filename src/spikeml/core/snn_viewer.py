@@ -88,6 +88,26 @@ class SSensorMonitorViewer(SensingMonitorViewer):
         self._plot_spikes('zs', callback=lambda ax: self._plot_input(ax=ax, va='top'), options=options, ax=axs[2+kx])
         plt.show()
 
+class LayerMonitorViewer(SensingMonitorViewer):
+    """Viewer for LayerMonitor, visualizing spikes, membrane potential, and outputs."""
+
+    def __init__(self, monitor: Monitor) -> None:
+        """
+        Args:
+            monitor: LayerMonitor object to visualize.
+        """
+        super().__init__(monitor)
+
+
+    def render(self, options: Optional[Union[dict, List[str], str]] = None) -> None:
+        """Render monitor data including spikes, membrane potentials, outputs."""
+        tt = self._signal_changes()
+        _,axs = self._axes(3)        
+        self._plot_spikes('zy', tt=tt, callback=lambda ax: self._plot_input(va='top', ax=ax), options=options, ax=axs[0])
+        self._plot_xt(['y'], options=options, ax=axs[1])
+        self._plot_data(['y'], options=options, ax=axs[2], callback=lambda ax: self._plot_input(ax))
+        plt.show()
+        self._plot_data(['u', 'us'], shared=True, callback=lambda ax: self._plot_input(ax), options=options)
 
 class SNNMonitorViewer(SensingMonitorViewer):
     """Viewer for SNNMonitor, visualizing spikes, membrane potential, and outputs."""
@@ -103,11 +123,6 @@ class SNNMonitorViewer(SensingMonitorViewer):
     def render(self, options: Optional[Union[dict, List[str], str]] = None) -> None:
         """Render SNN monitor data including spikes, membrane potentials, outputs."""
         tt = self._signal_changes()
-        _,axs = self._axes(3)
-        self._plot_xt(['s'], options=options, ax=axs[0])
-        self._plot_data(['s'], callback=lambda ax: self._plot_input(ax), options=options, ax=axs[1]) 
-        self._plot_spikes('zs', tt=tt, callback=lambda ax: self._plot_input(ax=ax, va='top'), options=options, ax=axs[2])
-        plt.show()
         _,axs = self._axes(2)        
         self._plot_xt(['x'], options=options, ax=axs[0])
         self._plot_lidata('x', self.monitor.ref.params.k_x, options=options, ax=axs[1])
