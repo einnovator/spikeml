@@ -110,7 +110,7 @@ class Component():
             else:
                 self.viewer.render(options)
 
- 
+  
     def collect(self, criteria: Union[type, str], out: list[Component] = None) -> list[Component]:
         """
         Collect components by type, name.
@@ -245,49 +245,6 @@ class Module(Component):
         """        
         return None
 
-
-class Fan(Module):
-    """
-    Module that fans out an input signal to multiple submodules.
-
-    Calls `step()` on each referenced submodule with the same input
-    and collects their outputs.
-
-    Parameters
-    ----------
-    refs : list of Module
-        Submodules to which the input signal is propagated.
-
-    Returns
-    -------
-    list
-        List of outputs from each submodule.
-    """
-    
-    def __init__(self, refs: List[Module]) -> None:
-        super().__init__()
-        self.refs = refs
-
-    def step(self, s: Any) -> List[Any]:
-        """
-        Propagate the input signal `s` to all referenced modules.
-
-        Parameters
-        ----------
-        s : any
-            Input signal shared across all submodules.
-
-        Returns
-        -------
-        list
-            List of outputs `y_i` from each submodule in `self.refs`.
-        """
-        yy = []
-        for m in self.refs:
-            y = m.step(s)
-            yy.append(y)
-        super().post_step(s)
-        return yy
 
 
 class Composite(Module):
@@ -521,5 +478,151 @@ class Chain(Composite):
         for m in self.refs:
             y = m.step(y)
         super().post_step(s, y)
+        return y
+
+class Fan(Composite):
+    """
+    Module that fans out an input signal to multiple submodules.
+
+    Calls `step()` on each referenced submodule with the same input
+    and collects their outputs as list.
+
+    Parameters
+    ----------
+    refs : list of Module
+        Submodules to which the input signal is propagated.
+    name : str, optional
+        Name of the chain module.
+    callback : callable or list, optional
+        Optional callback(s) triggered after each chain step.
+    """
+    
+    def __init__(
+        self,
+        refs: List[Module],
+        name: Optional[str] = None,
+        callback: Optional[Union[Callback, List[Callback]]] = None,
+    ) -> None:
+        super().__init__(refs=refs, name=name, callback=callback)
+        self._shape()
+            
+    def _shape(self) -> Optional[Tuple[int, int]]:         
+        """
+        Infer overall input/output shape of the module chain.
+
+        Returns
+        -------
+        tuple or None
+            Shape as (output_dim, input_dim), or None if unknown.
+        """
+        self.shape = None
+        if isinstance(self.refs, list) and len(self.refs)>0:
+            m,n = 0,None
+            for ref in self.refs:
+                if self.ref.shape is not None:
+                    if n is None:
+                        n = ref.shape[-1]
+                    m += ref.shape[0]
+            if n is not None:
+                self.shape = (m, n)  
+        return self.shape
+    
+    def step(self, s: Any) -> List[Any]:
+        """
+        Propagate the input signal `s` to all referenced modules.
+
+        Parameters
+        ----------
+        s : any
+            Input signal shared across all submodules.
+
+        Returns
+        -------
+        list
+            List of outputs `y_i` from each submodule in `self.refs`.
+        """
+        yy = []
+        for ref in self.refs:
+            y = ref.step(s)
+            yy.append(y)
+        super().post_step(s)
+        return yy
+
+
+class FanConcat(Composite):
+    """
+    Module that fans out an input signal to multiple submodules and concats oupt.
+
+    Calls `step()` on each referenced submodule with the same input
+    and collects their outputs as list.
+
+    Parameters
+    ----------
+    refs : list of Module
+        Submodules to which the input signal is propagated.
+    name : str, optional
+        Name of the chain module.
+    callback : callable or list, optional
+        Optional callback(s) triggered after each chain step.
+    """
+    
+    def __init__(
+        self,
+        refs: List[Module],
+        name: Optional[str] = None,
+        callback: Optional[Union[Callback, List[Callback]]] = None,
+    ) -> None:
+        super().__init__(refs=refs, name=name, callback=callback)
+        self._shape()
+            
+  
+    def _shape(self) -> Optional[Tuple[int, int]]:         
+        """
+        Infer overall input/output shape of the module chain.
+
+        Returns
+        -------
+        tuple or None
+            Shape as (output_dim, input_dim), or None if unknown.
+        """
+        self.shape = None
+        if isinstance(self.refs, list) and len(self.refs)>0:
+            m,n = 0,None
+            for ref in self.refs:
+                if self.ref.shape is not None:
+                    if n is None:
+                        n = ref.shape[-1]
+                    m += ref.shape[0]
+            if n is not None:
+                self.shape = (m, n)  
+        return self.shape
+
+    def step(self, s: Any) -> List[Any]:
+        """
+        Propagate the input signal `s` to all referenced modules.
+
+        Parameters
+        ----------
+        s : any
+            Input signal shared across all submodules.
+
+        Returns
+        -------
+        list
+            List of outputs `y_i` from each submodule in `self.refs`.
+        """
+        y_ = np.array(self.shape[0])
+        z_ = None
+        i = 0
+        for m in self.refs:
+            y = m.step(s)
+            y,z = y if isinstance(y, tuple) else (y, None)
+            y_[i:(i+y.shape[0])]=y
+            if z is not None:
+                if z_ is None:
+                    z_ = np.array(y_.shape)
+                y_[i:(i+z.shape[0])]=z
+        super().post_step(s)
+        y = y_,z_ if z_ is not None else y_
         return y
 

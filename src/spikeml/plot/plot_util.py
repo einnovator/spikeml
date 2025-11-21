@@ -434,6 +434,7 @@ def plot_mt(
     if legend_cols<0:
         legend_cols = data.shape[2]
     ax.legend(loc='upper right', fontsize=6, ncols=legend_cols)
+    ax.margins(0) 
     if fig is not None:
         #plt.tight_layout()
         plt.show()

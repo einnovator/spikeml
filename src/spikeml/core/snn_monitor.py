@@ -269,8 +269,8 @@ class LIConnectorMonitor(ConnectorMonitor):
     def sample(self) -> "LIConnectorMonitor":
         """Sample the state of the connector"""
         super().sample()
-        self._sample_prop('Cp')
-        self._sample_prop('Cn')
+        self._sample_prop('_Cp')
+        self._sample_prop('_Cn')
         #self._sample_prop('dM')
         #self._sample_prop('dMp')
         #self._sample_prop('dMn')

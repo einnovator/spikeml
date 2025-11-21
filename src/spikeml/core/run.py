@@ -241,6 +241,11 @@ class Results():
     ) -> None:
         #super().__init__()
         self.results = results
+
+    def iterate(self, callback, *args) -> None:
+        if self.results is not None:
+            for n, result in enumerate(self.results):
+                callback(result, *args)
         
     def collect(self, criteria: Union[type, str], out: list[Component] = None) -> list[Component]:
         """

@@ -849,6 +849,7 @@ class LIConnector(LinearConnector):
         super().__init__(M=M, size=size, params=params, name=name, callback=callback)
         if self.M is not None:
             self.Cp, self.Cn = np.zeros(self.M.shape), np.zeros(self.M.shape)
+            self._Cp, self._Cn = np.zeros(self.M.shape), np.zeros(self.M.shape)
         else:
             self.Cp, self.Cn = None, None
         self._M = M
@@ -867,9 +868,101 @@ class LIConnector(LinearConnector):
     def propagate(self, zs, zy):
         self._M = self.M
         self.M, self.Cp, self.Cn, dM, dMp, dMn, Zp, Zn, Wp, Wn = \
-            conn_update(self.M, self.Cp, self.Cn, zy, zs, params=self.params, debug=False)
+            self.conn_update(self.M, self.Cp, self.Cn, zy, zs, params=self.params, debug=False)
         self.dM, self.dMp, self.dMn, self.Zp, self.Zn, self.Wp, self.Wn = dM, dMp, dMn, Zp, Zn, Wp, Wn 
         return self.M, self.Cp, self.Cn, dM, dMp, dMn, Zp, Zn, Wp, Wn
+
+    def conn_update(self,
+        M: np.ndarray,
+        Cp: Optional[np.ndarray],
+        Cn: Optional[np.ndarray],
+        zy: np.ndarray,
+        zs: np.ndarray,
+        params: Optional['SSNNParams'] = None,
+        debug: bool = False
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, Optional[np.ndarray], Optional[np.ndarray], Optional[np.ndarray], np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Update a connection matrix using LTP/LTD rules.
+
+        Parameters
+        ----------
+        M : np.ndarray
+            Current connection matrix.
+        Cp : np.ndarray or None
+            Positive connection accumulator matrix. If None, initialized to zeros.
+        Cn : np.ndarray or None
+            Negative connection accumulator matrix. If None, initialized to zeros.
+        zy : np.ndarray
+            Post-synaptic spike vector.
+        zs : np.ndarray
+            Pre-synaptic spike vector.
+        params : SSNNParams, optional
+            Parameters containing thresholds, decay times, LTP/LTD settings, etc.
+        debug : bool
+            Whether to print debugging information.
+
+        Returns
+        -------
+        Tuple containing:
+            M_ : np.ndarray
+                Updated and normalized connection matrix.
+            Cp : np.ndarray
+                Updated positive accumulator.
+            Cn : np.ndarray
+                Updated negative accumulator.
+            dM : np.ndarray or None
+                Net change in weights.
+            dMp : np.ndarray or None
+                Positive weight updates (LTP).
+            dMn : np.ndarray or None
+                Negative weight updates (LTD).
+            Zp : np.ndarray
+                Positive Hebbian contribution.
+            Zn : np.ndarray
+                Negative Hebbian contribution.
+            Wp : np.ndarray
+                Positive weight mask.
+            Wn : np.ndarray
+                Negative weight mask.
+        """
+        if params is None:
+            params = SSNNParams()
+        if Cp is None:
+            Cp = np.zeros(M.shape)
+        if Cn is None:
+            Cn = np.zeros(M.shape)
+        Zp = np.outer(zy, zs)
+        Zn = np.outer(zy, 1-zs)
+        Cp += Zp
+        Cn += Zn
+        Wp = (Cp >= params.c_k).astype(int)
+        Wn = (Cn >= params.c_k).astype(int)
+        self._Cp[...]  = Cp
+        self._Cn[...] = Cn
+        Cp -= Wp*params.c_k
+        Cn -= Wn*params.c_k
+        Cp = np.clip(Cp, 0, None)
+        Cn = np.clip(Cn, 0, None)
+        if params.t_c>0:
+            a = 1 - 1/params.t_c
+            Cp *= a
+            Cn *= a
+        dMp = (1/params.t_p)*(Wp) if params.t_p>0 else None #LTP
+        dMn = -(1/params.t_d)*(Wn) if params.t_d>0 else None #LTD
+        dM = _sum(dMp, dMn)
+        _M = M
+        if dM is not None:
+            M = M + dM
+        M_ = M
+        if params.cmin is not None and params.cmax is not None:
+            M_ = np.clip(M_, params.cmin, params.cmax)
+        if (params.c_in is not None and params.c_in>0) or (params.c_out is not None and params.c_out>0):
+            M_ = normalize_matrix(M_, c_in=params.c_in, c_out=params.c_out, strict=False)
+
+        if debug:
+            xdisplay(Markup('_M', _M), Markup('Cp', Cp), Markup('Cn', Cn),  Markup('Zp', Zp), Markup('Zn', Zn), Markup('Wp', Wp), Markup('Wn', Wn), Markup('dM', dM), Markup('dMp', dMp), Markup('dMn', dMn), Markup('M', M), Markup('M_', M_))
+
+        return M_, Cp, Cn, dM, dMp, dMn, Zp, Zn, Wp, Wn
 
 
     def log(self, options=None):

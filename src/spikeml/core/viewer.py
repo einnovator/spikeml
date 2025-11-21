@@ -21,6 +21,11 @@ class MonitorViewer():
         #super().__init__()
         self.monitor = monitor
 
+    def get_ref(self):
+        if self.monitor is None:
+            return None
+        return self.monitor.ref  
+    
     def _get(self, key: str) -> Optional[np.ndarray]:
         """
         Retrieve stored data from the monitor by key.
