@@ -291,11 +291,15 @@ class ErrorMonitorViewer(MonitorViewer):
     def render(self, options: Optional[Union[dict, List[str], str]] = None) -> None:
         """Render error metrics and smoothed signals."""
         monitor = self.monitor
+        ref = self.get_ref()
         K = filter_count(['err', 'sm'], options, ref)
         if K>0:
-            _,axs = self._axes(K)     
+            _,axs = self._axes(K)    
+            k = 0 
             if filter('err', options, ref):                   
                 self._plot_data(['err', 'merr'], shared=True, ylim=(0,1.1), options=options, ax=axs[k])
+                k += 1
             if filter('sm', options, ref):
                 self._plot_data(['sm'], options=options, ax=axs[k])
+                k += 1
             plt.show()
