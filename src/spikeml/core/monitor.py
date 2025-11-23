@@ -31,7 +31,25 @@ class Monitor:
         self.name = name
         self.ref = ref
 
-    def _sample(self, key: str, value: Any) -> "Monitor":
+    def _sample_required(self, context: Optional[Any]=None):
+        if context is None:
+            return True
+        t = context.t
+        t_ = getattr(self, '_tsample', -1)
+        if t==t_:
+            return False
+        self._tsample = t  
+        return True
+        
+    def sample(self, context: Optional[Any]=None) -> None:
+        if not self._sample_required(context):
+            return False
+        self._sample(context)
+
+    def _sample(self, context: Optional[Any]=None) -> None:
+        pass #Abstract
+    
+    def _sample_value(self, key: str, value: Any) -> "Monitor":
         """
         Append a value to the monitored list corresponding to `key`.
 
@@ -115,7 +133,7 @@ class Monitor:
             ref = self.ref
         if prop is None:
             prop = key
-        self._sample(key, self._get(prop, ref=ref, copy=copy))
+        self._sample_value(key, self._get(prop, ref=ref, copy=copy))
         
     def _prefix(self, prefix: Optional[str] = None) -> str:
         """

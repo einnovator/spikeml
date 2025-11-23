@@ -83,17 +83,18 @@ class Component():
             else:
                 self.callback(self, s, y)
     
-    def sample(self) -> None:
+    def sample(self, context: Optional[Any]=None) -> None:
         """
         Trigger sampling in associated monitor(s).
         """        
         if self.monitor is not None:
             if isinstance(self.monitor, list):
                 for monitor in self.monitor:
-                    monitor.sample()
+                    monitor.sample(context)
             else:
-                self.monitor.sample()
+                self.monitor.sample(context)
 
+                
     def render(self, options: Any) -> None:
         """
         Render component visualization through associated viewer(s).
@@ -203,7 +204,7 @@ class Module(Component):
     ) -> None:
         super().__init__(name=name, params=params, auto_sample=auto_sample, monitor=monitor, viewer=viewer, callback=callback)
 
-    def step(self, s: Any) -> Any:
+    def step(self, s: Any, context: Optional[Any]=None) -> Any:
         """
         Execute a single computation step.
 
@@ -211,6 +212,8 @@ class Module(Component):
         ----------
         s : any
             Input signal, state, or data for the module.
+        context: any
+            Invokation context
 
         Returns
         -------
@@ -219,13 +222,13 @@ class Module(Component):
         """        
         y = self.propagate(s)
         if self.auto_sample:
-            self.sample()
+            self.sample(context)
             self.post_step(s, y)
         return y
 
-    def __call__(self, s: Any) -> Any:
-        """Alias for `step(s)`."""        
-        return self.step(s)
+    def __call__(self, s: Any, context: Optional[Any]=None) -> Any:
+        """Alias for `step(s)`."""   
+        return self.step(s, context)
 
     def propagate(self, s: Any) -> Any:
         """
@@ -378,28 +381,14 @@ class Composite(Module):
         for ref in self.refs:
             ref.log_monitor(options=options)
 
-    def update(self, s: Any, y: Any) -> None:
-        """
-        Propagate an update signal to all submodules.
-
-        Parameters
-        ----------
-        s : any
-            Input signal or state.
-        y : any
-            Output or feedback signal.
-        """
-        super().update(s, y)
-        for ref in self.refs:
-            ref.update(s, y)
     
-    def sample(self) -> None:
+    def sample(self, context: Optional[Any]=None) -> None:
         """
         Trigger sampling on the composite and all submodules.
         """
-        super().sample()
+        super().sample(context)
         for ref in self.refs:
-            ref.sample()
+            ref.sample(context)
     
     def render(self, options: Any) -> None:
         """
@@ -413,7 +402,115 @@ class Composite(Module):
         super().render(options)
         for ref in self.refs:
             ref.render(options)
-            
+
+class Adapter(Module):
+    """
+    An Adapter wraps Module by giving some extra functionality.
+    
+    
+    Parameters
+    ----------
+    ref : Module
+        reference or wrapped Module
+    name : str, optional
+        Name of the composite module.
+    params : dict, optional
+        Module configuration parameters.
+    auto_sample : bool, optional
+        Whether to automatically sample and trigger post-step callbacks.
+    monitor : object or list, optional
+        Monitor object(s) for data collection.
+    viewer : object or list, optional
+        Viewer object(s) for visualization.
+    callback : callable or list, optional
+        Function(s) invoked after each computation step.
+
+
+    callback : callable or list, optional
+        Optional callback(s) triggered after each step.
+    """
+    
+    def __init__(
+        self,
+        ref: Optional[Module],
+        name: Optional[str] = None,
+        params: Optional[Dict[str, Any]] = None,
+        auto_sample: bool = False,
+        monitor: Optional[MonitorType] = None,
+        viewer: Optional[ViewerType] = None,
+        callback: Optional[Union[Callback, List[Callback]]] = None,
+    ) -> None:
+        super().__init__(name=name,  params=params, auto_sample=auto_sample, monitor=monitor, viewer=viewer, callback=callback)
+        self.ref = ref
+           
+    def dump(self) -> None:
+        """
+        Dump the wrapped module.
+        """
+        if self.ref is not None:
+            self.ref.dump()
+
+    def log(self, options: Optional[Dict[str, Any]] = None) -> None:
+        """
+        Log internal state of wrapped module.
+
+        Parameters
+        ----------
+        options : dict, optional
+            Additional logging configuration.
+        """
+        if self.ref is not None:
+            if options is not None:
+                _types = options.get('types', None)
+                if _types is not None:
+                    b = False
+                    for _type in _types:
+                        if isinstance(self.ref, _type):
+                            b = True
+                            break
+                    if not b:
+                        return 
+                _names = options.get('names', None)
+                if _names is not None:
+                    if self.ref.name is None or self.ref.name not in _names:
+                        return 
+            self.ref.log(options=options)
+
+    def log_monitor(self, options: Optional[Dict[str, Any]] = None) -> None:
+        """
+        Log monitor for self monitor and monitor of the wrapped module.
+
+        Parameters
+        ----------
+        options : dict, optional
+            Additional logging configuration.
+        """
+        super().log_monitor(options)
+        if self.ref is not None:
+            self.ref.log_monitor(options=options)
+
+    
+    def sample(self, context: Optional[Any]=None) -> None:
+        """
+        Trigger sampling on the wrapped module.
+        """
+        super().sample()
+        if self.ref is not None:
+            self.ref.sample(context)
+    
+    def render(self, options: Any) -> None:
+        """
+        Render visualization including wrapped module.
+        
+        Parameters
+        ----------
+        options : dict or any
+            Rendering configuration passed to the wrapped module.
+        """
+        super().render(options)
+        if self.ref is not None:
+            slef.ref.render(options)
+ 
 class Chain(Composite):
     """
     Sequential composite module chaining multiple submodules.
@@ -460,7 +557,7 @@ class Chain(Composite):
                     self.shape = self.refs[0].shape
         return self.shape
             
-    def step(self, s: Any) -> Any:
+    def step(self, s: Any, context: Optional[Any]=None) -> Any:
         """
         Sequentially propagate the signal through all submodules.
 
@@ -476,7 +573,7 @@ class Chain(Composite):
         """
         y = s
         for m in self.refs:
-            y = m.step(y)
+            y = m.step(y, context)
         super().post_step(s, y)
         return y
 
@@ -527,7 +624,7 @@ class Fan(Composite):
                 self.shape = (m, n)  
         return self.shape
     
-    def step(self, s: Any) -> List[Any]:
+    def step(self, s: Any, context: Optional[Any]=None) -> List[Any]:
         """
         Propagate the input signal `s` to all referenced modules.
 
@@ -543,7 +640,7 @@ class Fan(Composite):
         """
         yy = []
         for ref in self.refs:
-            y = ref.step(s)
+            y = ref.step(s, context)
             yy.append(y)
         super().post_step(s)
         return yy
@@ -597,7 +694,7 @@ class FanConcat(Composite):
                 self.shape = (m, n)  
         return self.shape
 
-    def step(self, s: Any) -> List[Any]:
+    def step(self, s: Any, context: Optional[Any]=None) -> List[Any]:
         """
         Propagate the input signal `s` to all referenced modules.
 
@@ -615,7 +712,7 @@ class FanConcat(Composite):
         z_ = None
         i = 0
         for m in self.refs:
-            y = m.step(s)
+            y = m.step(s, context)
             y,z = y if isinstance(y, tuple) else (y, None)
             y_[i:(i+y.shape[0])]=y
             if z is not None:

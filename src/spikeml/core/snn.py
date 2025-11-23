@@ -3,7 +3,7 @@ import numpy as np
 from typing import Optional, Tuple, Union, Any, Dict
 
 from spikeml.utils.vector import _sum, upsample
-from spikeml.core.base import Component, Module, Fan, Composite, Chain
+from spikeml.core.base import Component, Module, Fan, Composite, Chain, Adapter
 from spikeml.core.params import Params, NNParams, ConnectorParams, SpikeParams, SSensorParams, SNNParams, SSNNParams
 
 from spikeml.core.snn_monitor import SSensorMonitor, LayerMonitor, SNNMonitor, SSNNMonitor, ConnectorMonitor, LIConnectorMonitor
@@ -310,7 +310,7 @@ class Layer(Module):
         super().__init__(name=name, params=params, auto_sample=auto_sample, monitor=monitor, viewer=viewer, callback=callback)
 
 
-class SimpleLayer(Module):
+class SimpleLayer(Layer):
     """
     Base class for layers with an internal connector or matrix `M`.
 
@@ -372,13 +372,29 @@ class SimpleLayer(Module):
                 if isinstance(self.M, Connector):
                     self.M.render(options)
 
-    def sample(self) -> None:
+    def sample(self, context: Optional[Any]=None) -> None:
         """
         Sample the internal state of the layer and its matrix if available.
         """
-        super().sample()
+        super().sample(context)
         if isinstance(self.M, Connector):
-            self.M.sample()
+            self.M.sample(context)
+            
+    def post_step(self, s: Any, y: Any) -> None:
+        """
+        Invoke registered callbacks after a computation step.
+
+        Parameters
+        ----------
+        s : any
+            Input signal or state for the current step.
+        y : any
+            Output signal or state from the current step.
+        """
+        super().post_step(s, y)
+        if isinstance(self.M, Connector):
+            self.M.post_step(s, y)
+
 
 class LinearLayer(SimpleLayer):
     """
@@ -728,15 +744,12 @@ class Connector(Component):
     def __init__(self, params=None, auto_sample=True, monitor=None, viewer=None, name=None, callback=None):
         super().__init__(name=name, params=params, auto_sample=auto_sample, monitor=monitor, viewer=viewer, callback=callback)
 
-    def step(self, s, y):
+    def step(self, s, y, context: Optional[Any]=None):
         y = self.propagate(s, y)
-        if self.auto_sample:
-            self.sample()
-            self.post_step(s, y)
         return y
 
-    def __call__(self, s, y):
-        return self.step(s, y)
+    def __call__(self, s, y, context: Optional[Any]=None):
+        return self.step(s, y, context)
 
     def propagate(self, s, y):
         return None
@@ -994,3 +1007,82 @@ class LIConnector2(LinearConnector):
             return (M[0]+M[1],M[0],M[1]) if type(M)==tuple else M
 
         xdisplay(Markup('_M', _m(self._M)), Markup('dM', self.dM), Markup('dMp', self.dMp), Markup('dMn', self.dMn), Markup('zc_p', self.zc[0]), Markup('zc_n', self.zc[1]), Markup('M', self.M))
+
+
+class FeedbackAdapter(Adapter):
+    """
+    FeedbackAdapter class.
+    
+    Attributes:
+        ref: Referenced Module
+        feedback: flag indicating if feedback is enabled (Default: True)
+        name: Optional name of the module.
+        params: Parameters associated with the module.
+        auto_sample: Whether to automatically sample during updates.
+        monitor: Optional monitor object for logging or visualization.
+        viewer: Optional viewer object for visualization.
+        callback: Optional callback function.
+    """
+
+    def __init__(self,
+                 ref: Optional[Module] = None, 
+                 feedback: Optional[bool] = True,
+                 name: Optional[str] = None,
+                 params: Optional[Any] = None,
+                 auto_sample: bool = True,
+                 monitor: Optional[Any] = None,
+                 viewer: Optional[Any] = None,
+                 callback: Optional[Any] = None):
+        super().__init__(ref, feedback=feedback, name=name, params=params, auto_sample=auto_sample, callback=callback)
+        self.ref = ref
+        self.feedback = feedback
+        if monitor==True:
+            monitor = ErrorMonitor(ref=ref)
+        if viewer==True:
+            viewer = ErrorMonitorViewer(monitor)
+        self.monitor=monitor
+        self.viewer=viewer
+
+
+    def propagate(self, s: Any) -> Any:
+        """
+        Compute module output for a given input signal.
+
+        This method should be overridden by subclasses.
+
+        Parameters
+        ----------
+        s : any
+            Input signal or state.
+
+        Returns
+        -------
+        any
+            Output result (default: None).
+        """        
+        return None
+
+            
+        (s, sx) = (s, sx) if isinstance(s, tuple) else (s, s)
+
+        y,zy = self.ref(s)
+        
+        sg = 1
+        if feedback:
+            #err = compute_error(sx, y)
+            #err = xcompute_error(sx, y, R=R, method='sum+clip')
+            err = compute_error(sx, zy)
+            sg = compute_sg(err, self.params)
+            if self.auto_sample:
+                self.monitor.sample(sx, err, sg)
+
+        sx = ss[t % ss.shape[0]] if len(ss.shape)==2 else s0
+        s = sx
+        sy = None
+        if feedback:
+            sy = self.params.g*zy #y
+            s = sx + sy
+            s *= sg
+            s = np.clip(s, params.vmin, params.vmax)
+            
+        return (s, sx)

@@ -87,8 +87,9 @@ def run(
             
         context.t = t
         s_ = (s, sx)
-        y,zy = nn(s_)
-        nn.sample()
+        y,zy = nn(s_, context)
+        
+        nn.sample(context)
 
         sg = 1
         if feedback:
@@ -96,7 +97,7 @@ def run(
             #err = xcompute_error(sx, y, R=R, method='sum+clip')
             err = compute_error(sx, zy)
             sg = compute_sg(err, params)
-            err_monitor.sample(sx, err, sg)
+            err_monitor._sample(sx, err, sg, context)
 
         if callback is not None:
             if callback(context)==False:
@@ -128,7 +129,8 @@ def run(
 
     if plot:
         nn.render(options)
-        err_viewer.render()
+        if feedback:
+            err_viewer.render()
 
     result = { 'nn': nn, 'err_monitor': err_monitor, 'err_viewer': err_viewer, 'context': context }
     return result

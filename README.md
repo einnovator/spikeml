@@ -22,5 +22,14 @@ Stable release (PyPI):
 pip install spikeml
 ```
 
+# TODO:
+
+- Results.render()
+- SSensor homeostasis
+- .render({'t0':0, 't':1000}) + plot axis
+- FanConcact test
+- Signal,Source
+- FeedbackAdapter
+
 ## License
 MIT License

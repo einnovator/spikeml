@@ -184,7 +184,7 @@ class SSNNMonitorViewer(SensingMonitorViewer):
     def render(self, options=None):
         tt = self._signal_changes()
         ref = self.get_ref()
-        K = filter_count(['zy', 'y', 'y', 'r'], options, ref)
+        K = filter_count(['zy', 'y', 'y'], options, ref)
         if K>0:
             _,axs = self._axes(K)        
             k = 0
@@ -195,9 +195,9 @@ class SSNNMonitorViewer(SensingMonitorViewer):
                 self._plot_xt(['y'], options=options, ax=axs[k])
                 self._plot_data(['y'], options=options, ax=axs[k+1], callback=lambda ax: self._plot_input(ax))
                 k += 2
-            if filter('r', options, ref):
-                self._plot_data(['r'], options=options, ax=axs[k], callback=lambda ax: self._plot_input(ax))
-                k += 1
+            #if filter('r', options, ref):
+            #    self._plot_data(['r'], options=options, ax=axs[k], callback=lambda ax: self._plot_input(ax))
+            #    k += 1
             plt.show()
         if filter('u', options, ref):
             self._plot_data(['u', 'us'], shared=True, callback=lambda ax: self._plot_input(ax), options=options)
@@ -258,12 +258,6 @@ class LIConnectorMonitorViewer(ConnectorMonitorViewer):
             if filter('Wn', options, ref):
                 self._plot_spikes(['Wn'], tt=tt, callback=lambda ax: self._plot_input(ax), options=options, ax=axs[k])
                 k += 1
-            if filter('Zp', options, ref):
-                self._plot_spikes(['Zp'], tt=tt, callback=lambda ax: self._plot_input(ax), options=options, ax=axs[k])
-                k += 1
-            if filter('Zn', options, ref):
-                self._plot_spikes(['Zn'], tt=tt, callback=lambda ax: self._plot_input(ax), options=options, ax=axs[k])
-                k += 1
 
             def _plot_Cx(ax):
                 self._plot_input(ax)
@@ -276,6 +270,14 @@ class LIConnectorMonitorViewer(ConnectorMonitorViewer):
             if filter('_Cn', options, ref):        
                 self._plot_mt(['_Cn'], callback=_plot_Cx, options=options, ax=axs[k])
                 k += 1            
+
+            if filter('Zp', options, ref):
+                self._plot_spikes(['Zp'], tt=tt, callback=lambda ax: self._plot_input(ax), options=options, ax=axs[k])
+                k += 1
+            if filter('Zn', options, ref):
+                self._plot_spikes(['Zn'], tt=tt, callback=lambda ax: self._plot_input(ax), options=options, ax=axs[k])
+                k += 1
+
             #self._plot_mt(['dM'], callback=lambda ax: self._plot_input(ax), options=options, ax=axs[0])
             #self._plot_mt(['dMp'], callback=lambda ax: self._plot_input(ax), options=options, ax=axs[0])
             #self._plot_mt(['dMn'], callback=lambda ax: self._plot_input(ax), options=options, ax=axs[0])

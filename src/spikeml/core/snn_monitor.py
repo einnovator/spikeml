@@ -40,7 +40,7 @@ class SSensorMonitor(Monitor):
         super().__init__(ref=ref)
         self.E = E
 
-    def sample(self) -> None:
+    def _sample(self, context: Optional[Any]=None) -> None:
         """Sample properties of the sensor and compute derived values."""
 
         self._sample_prop('sx')
@@ -118,7 +118,7 @@ class LayerMonitor(SensingMonitor):
         """
         super().__init__(ref=ref)
 
-    def sample(self) -> None:
+    def _sample(self, context: Optional[Any]=None) -> None:
         """Sample layer properties and compute derived values."""
         self._sample_prop('y')
         self._sample_prop('zy')
@@ -148,7 +148,7 @@ class SNNMonitor(SensingMonitor):
         """
         super().__init__(ref=ref)
 
-    def sample(self) -> None:
+    def _sample(self, context: Optional[Any]=None) -> None:
         """Sample layer properties and compute derived values."""
         self._sample_prop('x')
         self._sample_prop('y')
@@ -183,7 +183,7 @@ class SSNNMonitor(SensingMonitor):
         """
         super().__init__(ref=ref)
 
-    def sample(self) -> None:
+    def _sample(self, context: Optional[Any]=None) -> None:
         """Sample layer properties and compute derived values."""
         self._sample_prop('y')
         self._sample_prop('zy')
@@ -221,7 +221,7 @@ class ConnectorMonitor(SensingMonitor):
         self._Mp = None
         self._Mn = None
         
-    def sample(self) -> "ConnectorMonitor":
+    def _sample(self, context: Optional[Any]=None) -> "ConnectorMonitor":
         """Sample the state of the connector, including weight changes."""
         M = self._get('M')
         if M is not None:
@@ -266,9 +266,9 @@ class LIConnectorMonitor(ConnectorMonitor):
         """
         super().__init__(ref=ref)
         
-    def sample(self) -> "LIConnectorMonitor":
+    def _sample(self, context: Optional[Any]=None) -> "LIConnectorMonitor":
         """Sample the state of the connector"""
-        super().sample()
+        super()._sample(context)
         self._sample_prop('_Cp')
         self._sample_prop('_Cn')
         #self._sample_prop('dM')
@@ -315,7 +315,7 @@ class ErrorMonitor(Monitor):
         self._merr = 0
         self.E = E
 
-    def sample(self, s: np.ndarray, err: float, sm: np.ndarray) -> "ErrorMonitor":
+    def _sample(self, s: np.ndarray, err: float, sm: np.ndarray, context: Optional[Any]=None) -> "ErrorMonitor":
         """Sample error for a given step.
         
         Args:
@@ -336,10 +336,10 @@ class ErrorMonitor(Monitor):
 
     def sample_err(self, s: np.ndarray, err: float, sm: np.ndarray) -> "ErrorMonitor":
         """Record the current error and associated signals."""
-        self._sample('s', s)
-        self._sample('sm', sm)
-        self._sample('err', err)
-        self._sample('merr', self._merr)
+        self._sample_value('s', s)
+        self._sample_value('sm', sm)
+        self._sample_value('err', err)
+        self._sample_value('merr', self._merr)
         return self
 
     def log(self) -> None:
