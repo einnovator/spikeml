@@ -7,11 +7,12 @@ from spikeml.core.base import Component, Module, Fan, Composite, Chain, Adapter
 from spikeml.core.params import Params, NNParams, ConnectorParams, SpikeParams, SSensorParams, SNNParams, SSNNParams
 
 from spikeml.core.snn_monitor import SSensorMonitor, LayerMonitor, SNNMonitor, SSNNMonitor, ConnectorMonitor, LIConnectorMonitor
-from spikeml.core.snn_viewer import  SSensorMonitorViewer, LayerMonitorViewer, SNNMonitorViewer, SSNNMonitorViewer, ConnectorMonitorViewer, LIConnectorMonitorViewer, ErrorMonitorViewer
+from spikeml.core.snn_viewer import  SSensorMonitorViewer, LayerMonitorViewer, SNNMonitorViewer, SSNNMonitorViewer, ConnectorMonitorViewer, LIConnectorMonitorViewer
 
 from spikeml.core.spikes import pspike, spike
 from spikeml.core.matrix import matrix_split, normalize_matrix, _mult, cmask, cmask2, matrix_init, matrix_init2
 from spikeml.utils.nb_util import xdisplay, Markup
+from spikeml.core.signal import Source
 
 def __cov_update(M, s=None, y=None, zc_p=None, zc_n=None, params=None, debug=False):
     s = s
@@ -431,7 +432,7 @@ class LinearLayer(SimpleLayer):
         self.viewer=viewer
         self.monitor=monitor
                 
-    def propagate(self, s: Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]) -> Tuple[np.ndarray, np.ndarray]:
+    def propagate(self, s: Union[np.ndarray, Tuple[np.ndarray, np.ndarray]], context: Optional[Any]=None) -> Tuple[np.ndarray, np.ndarray]:
         """
         Propagate input spikes through the network and update neuron potentials.
         
@@ -448,7 +449,7 @@ class LinearLayer(SimpleLayer):
         zy = self.M @ zs if zs is not None else None
 
         if isinstance(self.M, Connector):
-            self.M.propagate(zs, zy)
+            self.M.propagate(zs, zy, context)
 
         self.y, self.zy = y, zy
         
@@ -505,7 +506,7 @@ class SNN(SimpleLayer):
         self.viewer=viewer
         self.monitor=monitor
                 
-    def propagate(self, s: Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]) -> Tuple[np.ndarray, np.ndarray]:
+    def propagate(self, s: Union[np.ndarray, Tuple[np.ndarray, np.ndarray]], context: Optional[Any]=None) -> Tuple[np.ndarray, np.ndarray]:
         """
         Propagate input spikes through the network and update neuron potentials.
         
@@ -531,7 +532,7 @@ class SNN(SimpleLayer):
         self.x = np.clip(self.x, 0, None)
         self.x +=  -self.x*1/self.params.t_x    
         
-        self.M.propagate(zs, zy)
+        self.M.propagate(zs, zy, context)
 
         self.y, self.zy = y, zy
         self.r = r
@@ -600,7 +601,7 @@ class SSNN(SimpleLayer):
         return s
 
 
-    def propagate(self, s: Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]) -> Tuple[np.ndarray, np.ndarray]:
+    def propagate(self, s: Union[np.ndarray, Tuple[np.ndarray, np.ndarray]], context: Optional[Any]=None) -> Tuple[np.ndarray, np.ndarray]:
         """
         Propagate input spikes through the network and update neuron potentials.
         
@@ -622,7 +623,7 @@ class SSNN(SimpleLayer):
         zy = spike(y, self.params)
         self.y, self.zy = y, zy
          
-        self.M.propagate(zs, zy)
+        self.M.propagate(zs, zy, context)
             
         self.b = bias_update(self.b, self.y, params=self.params)        
 
@@ -683,7 +684,7 @@ class SSensor(Layer):
         self.viewer=viewer
         self.monitor=monitor
                 
-    def propagate(self, s):
+    def propagate(self, s, context: Optional[Any]=None):
         s,sx = (s[0],s[1]) if isinstance(s, tuple) else (s,s) 
         R = self.s.shape[0] // s.shape[0]                    
         self.R = R
@@ -716,7 +717,7 @@ class DSSNN(SSNN):
         self.monitor=monitor
         self.viewer=viewer
 
-    def propagate(self, s):
+    def propagate(self, s, context: Optional[Any]=None):
         s, zs = s if isinstance(s, tuple) else (s, None)
         if zs is None:
             zs = spike(s, self.params)
@@ -728,8 +729,8 @@ class DSSNN(SSNN):
         y = np.clip(_y, params.vmin, params.vmax)
         zy = spike(y, params)    
         
-        self.M.propagate(zs, zy)
-        self.Mx.propagate(zy, zy)
+        self.M.propagate(zs, zy, context)
+        self.Mx.propagate(zy, zy, context)
             
         self.b = bias_update(self.b, self.y, params=params)        
 
@@ -745,13 +746,13 @@ class Connector(Component):
         super().__init__(name=name, params=params, auto_sample=auto_sample, monitor=monitor, viewer=viewer, callback=callback)
 
     def step(self, s, y, context: Optional[Any]=None):
-        y = self.propagate(s, y)
+        y = self.propagate(s, y, context)
         return y
 
     def __call__(self, s, y, context: Optional[Any]=None):
         return self.step(s, y, context)
 
-    def propagate(self, s, y):
+    def propagate(self, s, y, context: Optional[Any]=None):
         return None
 
 class LinearConnector(Connector):
@@ -817,7 +818,7 @@ class LinearConnector(Connector):
             return np.array_equal(self.M, other.M)
         return False
     
-    def propagate(self, s, y):
+    def propagate(self, s, y, context: Optional[Any]=None):
         self._M = self.M
         return self.M
     
@@ -841,7 +842,7 @@ class RateConnector(LinearConnector):
         self.viewer= viewer
 
     
-    def propagate(self, s, y):
+    def propagate(self, s, y, context: Optional[Any]=None):
         self._M = self.M
         #TODO: update M
         return self.M
@@ -878,7 +879,7 @@ class LIConnector(LinearConnector):
         """Defines self @ other"""
         return self.M @ other
         
-    def propagate(self, zs, zy):
+    def propagate(self, zs, zy, context: Optional[Any]=None):
         self._M = self.M
         self.M, self.Cp, self.Cn, dM, dMp, dMn, Zp, Zn, Wp, Wn = \
             self.conn_update(self.M, self.Cp, self.Cn, zy, zs, params=self.params, debug=False)
@@ -1009,80 +1010,3 @@ class LIConnector2(LinearConnector):
         xdisplay(Markup('_M', _m(self._M)), Markup('dM', self.dM), Markup('dMp', self.dMp), Markup('dMn', self.dMn), Markup('zc_p', self.zc[0]), Markup('zc_n', self.zc[1]), Markup('M', self.M))
 
 
-class FeedbackAdapter(Adapter):
-    """
-    FeedbackAdapter class.
-    
-    Attributes:
-        ref: Referenced Module
-        feedback: flag indicating if feedback is enabled (Default: True)
-        name: Optional name of the module.
-        params: Parameters associated with the module.
-        auto_sample: Whether to automatically sample during updates.
-        monitor: Optional monitor object for logging or visualization.
-        viewer: Optional viewer object for visualization.
-        callback: Optional callback function.
-    """
-
-    def __init__(self,
-                 ref: Optional[Module] = None, 
-                 feedback: Optional[bool] = True,
-                 name: Optional[str] = None,
-                 params: Optional[Any] = None,
-                 auto_sample: bool = True,
-                 monitor: Optional[Any] = None,
-                 viewer: Optional[Any] = None,
-                 callback: Optional[Any] = None):
-        super().__init__(ref, feedback=feedback, name=name, params=params, auto_sample=auto_sample, callback=callback)
-        self.ref = ref
-        self.feedback = feedback
-        if monitor==True:
-            monitor = ErrorMonitor(ref=ref)
-        if viewer==True:
-            viewer = ErrorMonitorViewer(monitor)
-        self.monitor=monitor
-        self.viewer=viewer
-
-
-    def propagate(self, s: Any) -> Any:
-        """
-        Compute module output for a given input signal.
-
-        This method should be overridden by subclasses.
-
-        Parameters
-        ----------
-        s : any
-            Input signal or state.
-
-        Returns
-        -------
-        any
-            Output result (default: None).
-        """        
-        return None
-
-            
-        (s, sx) = (s, sx) if isinstance(s, tuple) else (s, s)
-
-        y,zy = self.ref(s)
-        
-        sg = 1
-        if feedback:
-            #err = compute_error(sx, y)
-            #err = xcompute_error(sx, y, R=R, method='sum+clip')
-            err = compute_error(sx, zy)
-            sg = compute_sg(err, self.params)
-            if self.auto_sample:
-                self.monitor.sample(sx, err, sg)
-
-        sx = ss[t % ss.shape[0]] if len(ss.shape)==2 else s0
-        s = sx
-        sy = None
-        if feedback:
-            sy = self.params.g*zy #y
-            s = sx + sy
-            s *= sg
-            s = np.clip(s, params.vmin, params.vmax)
-            
-        return (s, sx)

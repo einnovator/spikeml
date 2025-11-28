@@ -12,6 +12,7 @@ from typing import Annotated, Any, Callable, Optional, Sequence, Union, Tuple, D
 from pydantic import BaseModel, Field, WithJsonSchema
 import pydantic
 import ipywidgets as widgets
+from spikeml.core.env import Source
 
 def signal_dc(dim=2, T=10, s=None, value=1):
     """
@@ -531,3 +532,62 @@ def sum_per_input(
 
     return stats_per_input(data, signal, lambda a: np.sum(a, axis=0), E=E, aggregate=aggregate)
 
+
+
+
+class Signal(Source):
+    """
+    Base class for signals.
+
+    Attributes:
+        name: Optional name of the Signal.
+        t: Last sampled time
+    """
+    def __init__(self,         
+                 name: Optional[str] = None,
+                 t: Optional[int] = 0
+                 ):
+        super().__init__(name=name)
+        self.t = t
+
+    def restart(self, t: Optional[int]=0):
+        self.t = t
+        
+class SimpleSignal(Signal):
+    """
+    Signal defined by a predefined array -- first component is discrete time.
+    
+    Attributes:
+        ss: the signal array
+        name: Optional name of the Signal.
+        t: Last sampled time
+    """
+
+    def __init__(self,         
+                 ss : np.array,
+                 name: Optional[str] = None,
+                 t: Optional[int] = 0
+                 ):
+        super().__init__(name=name, t=t)
+        self.ss = ss
+        
+    def next(self):
+        if self.t >= self.ss.shape[0]:
+            return None
+        s = self.ss[self.t]
+        self.t += 1
+        return s
+
+    def len(self):
+        return self.ss.shape[0]
+    
+    def done(self):
+        return self.t>=self.len()
+
+    def next_batch(self, n):
+        ss = self.ss[self.t:min(self.t+n, self.len())]
+        return ss
+    
+    def signal(self):
+        return self.ss
+        

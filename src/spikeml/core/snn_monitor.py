@@ -308,47 +308,48 @@ class ErrorMonitor(Monitor):
         """
         super().__init__(name=name, ref=ref)
         self.s = None 
-        self.err = None 
-        self.merr = None
-        self._serr = 0
+        self.error = None 
+        self.mean_error = None
+        self._sum_error = 0
         self._n = 0
-        self._merr = 0
+        self._mean_error = 0
         self.E = E
 
-    def _sample(self, s: np.ndarray, err: float, sm: np.ndarray, context: Optional[Any]=None) -> "ErrorMonitor":
+    def _sample(self, context: Optional[Any]=None) -> "ErrorMonitor":
         """Sample error for a given step.
         
         Args:
             s: Input signal.
-            err: Current error value.
-            sm: Smoothed signal.
+            error: Current error value.
+            gain: Smoothed signal.
         """
-        self.compute_err(err)
-        self.sample_err(s, err, sm)
+        if context is not None:
+            self.compute_err(context.error)
+            self.sample_err(context.sx, context.error, context.gain)
         return self
 
-    def compute_err(self, err: float) -> "ErrorMonitor":
+    def compute_err(self, error: float) -> "ErrorMonitor":
         """Update running mean error."""
-        self._serr += err
+        self._sum_error += error
         self._n += 1
-        self._merr = self._serr/self._n
+        self._mean_error = self._sum_error/self._n
         return self
 
-    def sample_err(self, s: np.ndarray, err: float, sm: np.ndarray) -> "ErrorMonitor":
+    def sample_err(self, s: np.ndarray, error: float, gain: np.ndarray) -> "ErrorMonitor":
         """Record the current error and associated signals."""
         self._sample_value('s', s)
-        self._sample_value('sm', sm)
-        self._sample_value('err', err)
-        self._sample_value('merr', self._merr)
+        self._sample_value('gain', gain)
+        self._sample_value('error', error)
+        self._sample_value('mean_error', self._mean_error)
         return self
 
-    def log(self) -> None:
+    def log(self, options: Optional[Dict[str, Any]] = None) -> None:
         """Print error statistics."""
         prefix = self._prefix()
         print(f'{prefix}:')
-        print(f'  ', f'merr: {self.merr[-1]:.4f}')
-        ref, size, means = mean_per_input(self.err, self.s, E=self.E)
-        ref, ranges, means_ = mean_per_input(self.err, self.s, E=self.E, aggregate=False)
+        print(f'  ', f'mean_error: {self.mean_error[-1]:.4f}')
+        ref, size, means = mean_per_input(self.error, self.s, E=self.E)
+        ref, ranges, means_ = mean_per_input(self.error, self.s, E=self.E, aggregate=False)
         for i in range(0, ref.shape[0]):
             print(f'  ', f'{i}: {ref[i]} (#{size[i]}): Err: {fmt_float(means[i], 4)}')
         for i in range(0, ref.shape[0]):

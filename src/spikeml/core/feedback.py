@@ -1,9 +1,14 @@
 import numpy as np
 import math
-from typing import Optional, Union
+from typing import Optional, Tuple, Union, Any, Dict
 from enum import Enum, auto
 
 from spikeml.core.params import Params, NNParams, ConnectorParams, SpikeParams, SSensorParams, SNNParams, SSNNParams
+from spikeml.core.base import Adapter, Module
+from spikeml.core.env import Source
+from spikeml.core.snn_monitor import SSensorMonitor, LayerMonitor, SNNMonitor, SSNNMonitor, ConnectorMonitor, LIConnectorMonitor
+from spikeml.core.snn_monitor import  ErrorMonitor
+from spikeml.core.snn_viewer import  ErrorMonitorViewer
 
 def compute_error(
     s: np.ndarray,
@@ -196,3 +201,91 @@ def compute_sg(err, params):
     """
     sg = np.exp(-err*params.e_err)
     return sg
+
+
+class FeedbackAdapter(Adapter):
+    """
+    FeedbackAdapter class.
+    
+    Attributes:
+        ref: Referenced Module
+        source: the signal Source
+        feedback: flag indicating if feedback is enabled (Default: True)
+        name: Optional name of the module.
+        params: Parameters associated with the module.
+        auto_sample: Whether to automatically sample during updates.
+        monitor: Optional monitor object for logging or visualization.
+        viewer: Optional viewer object for visualization.
+        callback: Optional callback function.
+    """
+
+    def __init__(self,
+                 ref: Optional[Module] = None, 
+                 source: Optional[Source] = None,
+                 feedback: Optional[bool] = True,
+                 name: Optional[str] = None,
+                 params: Optional[Any] = None,
+                 auto_sample: bool = True,
+                 monitor: Optional[Any] = True,
+                 viewer: Optional[Any] = True,
+                 callback: Optional[Any] = None):
+        super().__init__(ref, name=name, params=params, auto_sample=auto_sample, callback=callback)        
+        self.source = source
+        self.feedback = feedback
+        self.y, self.zy = None, None
+        self.gain = 1
+        if feedback:
+            if monitor==True:
+                monitor = ErrorMonitor(ref=ref)
+            if viewer==True:
+                viewer = ErrorMonitorViewer(monitor)
+        self.monitor=monitor
+        self.viewer=viewer
+
+
+    def propagate(self, sx: Optional[Source] = None, context: Optional[Any]=None) -> Any:
+        """
+        Compute module output for a given input signal.
+
+        This method should be overridden by subclasses.
+
+        Parameters
+        ----------
+        s : any
+            Input signal or state.
+
+        Returns
+        -------
+        any
+            Output result (default: None).
+        """        
+        if sx is None:
+            sx = self.source.next()
+            if sx is None:
+                return None
+
+        s = sx
+        if self.feedback and self.zy is not None:
+            sy = self.params.g*self.zy #self.y
+            s = sx + sy
+            s *= self.gain
+            s = np.clip(s, self.params.vmin, self.params.vmax)
+        
+        s_ = (s, sx)
+        y_ = self.ref(s_, context)
+        y,zy = y_ if isinstance(y_, tuple) else (y_, y_)
+        self.y,self.zy = y, zy 
+        
+        self.gain = 1
+        if self.feedback:
+            #error = compute_error(sx, y)
+            #error = xcompute_error(sx, y, R=R, method='sum+clip')
+            error = compute_error(sx, zy)
+            self.gain = compute_sg(error, self.params)
+            if self.auto_sample and self.monitor is not None and context is not None:
+                context.set_attr('sx', sx)
+                context.set_attr('error', error)
+                context.set_attr('gain', self.gain)
+                self.monitor.sample(context)
+            
+        return (s, sx)

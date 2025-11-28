@@ -220,7 +220,7 @@ class Module(Component):
         y : any
             Output signal resulting from propagation.
         """        
-        y = self.propagate(s)
+        y = self.propagate(s, context)
         if self.auto_sample:
             self.sample(context)
             self.post_step(s, y)
@@ -230,7 +230,7 @@ class Module(Component):
         """Alias for `step(s)`."""   
         return self.step(s, context)
 
-    def propagate(self, s: Any) -> Any:
+    def propagate(self, s: Any, context: Optional[Any]=None) -> Any:
         """
         Compute module output for a given input signal.
 
@@ -509,7 +509,7 @@ class Adapter(Module):
         """
         super().render(options)
         if self.ref is not None:
-            slef.ref.render(options)
+            self.ref.render(options)
  
 class Chain(Composite):
     """

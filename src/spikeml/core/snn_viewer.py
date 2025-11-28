@@ -294,14 +294,14 @@ class ErrorMonitorViewer(MonitorViewer):
         """Render error metrics and smoothed signals."""
         monitor = self.monitor
         ref = self.get_ref()
-        K = filter_count(['err', 'sm'], options, ref)
+        K = filter_count(['error', 'gain'], options, ref)
         if K>0:
             _,axs = self._axes(K)    
             k = 0 
-            if filter('err', options, ref):                   
-                self._plot_data(['err', 'merr'], shared=True, ylim=(0,1.1), options=options, ax=axs[k])
+            if filter('error', options, ref):                   
+                self._plot_data(['error', 'mean_error'], shared=True, ylim=(0,1.1), options=options, ax=axs[k])
                 k += 1
-            if filter('sm', options, ref):
-                self._plot_data(['sm'], options=options, ax=axs[k])
+            if filter('gain', options, ref):
+                self._plot_data(['gain'], options=options, ax=axs[k])
                 k += 1
             plt.show()

@@ -7,18 +7,23 @@ from typing import Any, Callable, Dict, Optional, Union, List, Tuple
 from spikeml.core.base import Component
 from spikeml.core.snn_monitor import ErrorMonitor
 from spikeml.core.snn_viewer import ErrorMonitorViewer
-from spikeml.core.feedback import compute_error, compute_sg
+from spikeml.core.feedback import compute_error, compute_sg, FeedbackAdapter
 from spikeml.core.spikes import spike
 from spikeml.core.snn import Connector, SimpleLayer
+from spikeml.core.env import Source
+from spikeml.core.signal import SimpleSignal
 
-class Context(BaseModel):
+class Context():
     """Execution context for neural network simulations.
 
     Attributes:
         t (int): Current simulation timestep (>0).
     """
-    t: int = Field(default=0, gt=0)
-
+    t: int = 0
+    
+    def set_attr(self, key, value):
+        setattr(self, key, value)
+        
     def __str__(self) -> str:
         """Return a string representation of the context."""
         return f'{type(self).__name__}({vars(self)})'     
@@ -93,11 +98,14 @@ def run(
 
         sg = 1
         if feedback:
-            #err = compute_error(sx, y)
-            #err = xcompute_error(sx, y, R=R, method='sum+clip')
-            err = compute_error(sx, zy)
-            sg = compute_sg(err, params)
-            err_monitor._sample(sx, err, sg, context)
+            #error = compute_error(sx, y)
+            #error = xcompute_error(sx, y, R=R, method='sum+clip')
+            error = compute_error(sx, zy)
+            sg = compute_sg(error, params)
+            context.set_attr('sx', sx)
+            context.set_attr('error', error)
+            context.set_attr('gain', self.gain)
+            err_monitor.sample(context)
 
         if callback is not None:
             if callback(context)==False:
@@ -133,6 +141,101 @@ def run(
             err_viewer.render()
 
     result = { 'nn': nn, 'err_monitor': err_monitor, 'err_viewer': err_viewer, 'context': context }
+    return result
+
+def run_with_feedback(
+    ref: Any,
+    source: Any,
+    params: Optional[Any] = None,
+    feedback: bool = True,
+    T: Optional[int] = None,
+    report: bool = True,
+    plot: bool = True,
+    log_step: int = 1,
+    callback: Optional[Callable[[Context], bool]] = None,
+    options: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    
+    if isinstance(source, np.ndarray):
+        source = SimpleSignal(source)    
+    ref_ = FeedbackAdapter(ref=ref, source=source, feedback=feedback, params=params)
+    run_with(ref=ref_, T=T, report=report, plot=plot, log_step=log_step, callback=callback, options=options)
+    
+def run_with(
+    ref: Any,
+    T: Optional[int] = None,
+    report: bool = True,
+    plot: bool = True,
+    log_step: int = 1,
+    callback: Optional[Callable[[Context], bool]] = None,
+    options: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    """Run a single simulation over time.
+
+    Args:
+        ref: Root simulation object with methods `__call__`, `sample`, `log`, and `render`.
+        ss (np.ndarray): Input stimulus array (shape: [T, N] or [N]).
+        T (int, optional): Number of time steps. Defaults to inferred from `ss` if not given.
+        params: Simulation or model parameters (must define attributes `vmin`, `vmax`, `e_err`, `g`).
+        feedback (bool, optional): Whether to enable error feedback loop. Defaults to True.
+        report (bool, optional): Whether to output run report. Defaults to True.
+        plot (bool, optional): Whether to render plots after the run. Defaults to True.
+        callback (Callable[[Context], bool], optional): Function called at each timestep.
+            Return False to stop simulation early.
+        log_step (int, optional): Frequency of log output (in steps). Defaults to 1.
+        options (dict, optional): Extra configuration flags for logging and rendering.
+
+    Returns:
+        dict: A dictionary containing simulation results:
+            - `'nn'`: Final neural network state
+            - `'err_monitor'`: Error monitor instance (if feedback enabled)
+            - `'err_viewer'`: Error viewer instance (if feedback enabled)
+            - `'t'`: Final timestep index
+    """
+        
+    done = False
+    context = Context()
+    
+    t = 0        
+    while not done:
+        debug_ = log_step is not None and log_step>=0 and (t==0 or (T is not None and t==T-1) or (log_step>0 and t%log_step==0))
+        
+        if debug_:
+            if options is None or options.get('log.time', True):
+                print(f't= {t}:')
+            
+        context.t = t
+        out = ref(None, context)
+        
+        ref.sample(context)
+
+        if callback is not None:
+            if callback(context)==False:
+                done = True
+
+        t += 1
+        if T is not None and t==T:
+            done = True
+        if out is None:
+            done = True
+
+        if not debug_:
+            debug_ = log_step is not None and log_step>=0 and (t==0 or (T is not None and t==T-1) or (log_step>0 and t%log_step==0))
+
+        if debug_:
+            ref.log(options)
+            print('-'*10)
+                
+        if done:
+            break
+
+    if report:
+        ref.log_monitor(options)
+
+    if plot:
+        ref.render(options)
+
+    result = { 'ref': ref, 'context': context }
     return result
 
 def nrun(
