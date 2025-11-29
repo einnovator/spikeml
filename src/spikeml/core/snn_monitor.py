@@ -94,6 +94,8 @@ class SensingMonitor(Monitor):
                     sx = getattr(sensor.monitor, 'sx', None)
                     #print('  !sx:', len(sx) if sx is not None else None)
                     return sx
+        else:
+            print('WARN: no parent:', self.ref)            
         return None
     
     def _log(self, options: Optional[Dict[str, Any]] = None) -> None:

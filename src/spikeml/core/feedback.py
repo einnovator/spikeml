@@ -239,6 +239,10 @@ class FeedbackAdapter(Adapter):
                 monitor = ErrorMonitor(ref=ref)
             if viewer==True:
                 viewer = ErrorMonitorViewer(monitor)
+        else:
+            if isinstance(monitor, bool):
+                monitor = None
+                viewer = None
         self.monitor=monitor
         self.viewer=viewer
 

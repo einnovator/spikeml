@@ -279,16 +279,28 @@ class Composite(Module):
             for ref in refs:
                 ref._parent = self
 
-    def append(self, ref):
+    def append(self, ref: Union[Module|List[Module]]):
         if self.refs is None:
             self.refs = []
         if isinstance(ref, list):
             for ref_ in ref:
                 self.append(ref_)
+                ref._parent = self
             return
         self.refs.append(ref)
         ref._parent = self
-        
+
+    def preappend(self, ref: Union[Module|List[Module]]):
+        if self.refs is None:
+            self.refs = []
+        if isinstance(ref, list):
+            for ref_ in reversed(ref):
+                self.refs.insert(0, ref_)
+                ref_._parent = self
+            return
+        self.refs.insert(0, ref)
+        ref._parent = self
+     
     def find(self, ref: Union[type, str, Module]) -> Optional[Module]:
         """
         Find a submodule by type, name, or reference.
@@ -536,7 +548,7 @@ class Chain(Composite):
     ) -> None:
         super().__init__(refs=refs, name=name, callback=callback)
         self._shape()
-     
+                 
     def _shape(self) -> Optional[Tuple[int, int]]:         
         """
         Infer overall input/output shape of the module chain.

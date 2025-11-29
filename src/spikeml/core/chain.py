@@ -5,7 +5,7 @@ from typing import Optional, Tuple, Union, Any, Dict
 from spikeml.utils.vector import _sum, upsample
 from spikeml.core.base import Component, Module, Fan, Composite, Chain
 from spikeml.core.params import SSensorParams, Params, NNParams, ConnectorParams, SpikeParams, SNNParams, SSNNParams
-from spikeml.core.snn import SSensor, SNN, SSNN, LIConnector
+from spikeml.core.snn import SSensor, SNN, SSNN, Connector, LIConnector
 
 from spikeml.core.matrix import matrix_init, matrix_init2
 
@@ -50,17 +50,22 @@ def chain_validate(nn):
     for ref in nn.refs:
         ok = _size is None or ref.shape[-1]==_size
         print(f'  {ref.name} {ref} :', ref.shape, 'OK' if ok else 'ERR', 'OK' if nn.find(type(ref))!=None else 'NOT_FOUND')
+        if hasattr(ref, 'M') and isinstance(ref.M, Connector):
+            print(f'    {ref.M.name} {ref.M} :', ref.M.shape)
+            
         _size = ref.shape[0]
 
-def make_ssnn_chain(k=1, size=None, name='nn', params=None, sensor_params=None, auto_sample=True, monitor=True, viewer=True):
+def make_ssnn_chain(k=1, size=None, input_contructor=None, output_contructor=None, auto_sensor=True, name='nn', params=None, sensor_params=None, auto_sample=True, monitor=True, viewer=True):
     def _layer(name, size, params):
         M = LIConnector(size=size, name=name, params=params, monitor=monitor, viewer=viewer)
         return SSNN(name=name, M=M, params=params, auto_sample=auto_sample, monitor=monitor, viewer=viewer)
 
     def _sensor(name, size, params):
         return SSensor(name=name, n=size, params=sensor_params, auto_sample=auto_sample, monitor=monitor, viewer=viewer)
-
-    chain = make_chain(_layer, _sensor, k=k, size=size, name=name, params=params, auto_sample=auto_sample, monitor=monitor, viewer=viewer)
+    if input_contructor is None and auto_sensor:
+        input_contructor = _sensor
+        
+    chain = make_chain(_layer, input_contructor, k=k, size=size, name=name, params=params, auto_sample=auto_sample, monitor=monitor, viewer=viewer)
     return chain
 
 def make_snn_chain(k=1, size=None, name='nn', params=None, auto_sample=True, monitor=True, viewer=True):

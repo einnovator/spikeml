@@ -104,7 +104,7 @@ def run(
             sg = compute_sg(error, params)
             context.set_attr('sx', sx)
             context.set_attr('error', error)
-            context.set_attr('gain', self.gain)
+            context.set_attr('gain', sg)
             err_monitor.sample(context)
 
         if callback is not None:
@@ -124,7 +124,7 @@ def run(
             nn.log(options)
             if feedback:
                 if options is None or options.get('log.err', True):
-                    print(f'sx={sx}; sy={sy}; sg={sg:.2f}; s={s}; err={err:.3f}')
+                    print(f'sx={sx}; sy={sy}; sg={sg:.2f}; s={s}; error={error:.3f}')
             print('-'*10)
 
         if done:
@@ -159,7 +159,7 @@ def run_with_feedback(
     if isinstance(source, np.ndarray):
         source = SimpleSignal(source)    
     ref_ = FeedbackAdapter(ref=ref, source=source, feedback=feedback, params=params)
-    run_with(ref=ref_, T=T, report=report, plot=plot, log_step=log_step, callback=callback, options=options)
+    return run_with(ref=ref_, T=T, report=report, plot=plot, log_step=log_step, callback=callback, options=options)
     
 def run_with(
     ref: Any,
@@ -219,8 +219,10 @@ def run_with(
         if out is None:
             done = True
 
-        if not debug_:
-            debug_ = log_step is not None and log_step>=0 and (t==0 or (T is not None and t==T-1) or (log_step>0 and t%log_step==0))
+        if done and not debug_:
+            debug_ = True
+            if options is None or options.get('log.time', True):
+                print(f't= {t-1}:')
 
         if debug_:
             ref.log(options)

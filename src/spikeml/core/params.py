@@ -31,7 +31,8 @@ CMIN = -2  # Minimum synaptic connection weight
 T_P = 1    # Characteristic time for potentiation
 T_D = 5    # Characteristic time for depression
 T_C = 10   # Characteristic time for connection decay
-C_K = 2    # LTP/LTD threshold
+K_P = 2    # LTP threshold
+K_N = 2    # LTD threshold
 C_IN = 0   # Connection normalization (inbound)
 C_OUT = 0  # Connection normalization (outbound)
 
@@ -109,8 +110,11 @@ class ConnectorParams(Params):
 
     Attributes
     ----------
-    c_k : float
-        LTP/LTD activation threshold.
+    k_p : float
+        LTP activation threshold.
+    k_n : float
+        LTD activation threshold.
+
     t_c : float
         Time constant for connection decay.
     t_p : float
@@ -132,7 +136,8 @@ class ConnectorParams(Params):
     size : Any
         Shape or size of the connection matrix.
     """
-    c_k: float = Field(default=C_K)
+    k_p: float = Field(default=K_P)
+    k_n: float = Field(default=K_N)
     t_c: float = Field(default=T_C, ge=0)
     t_p: float = Field(default=T_P, ge=0)
     t_d: float = Field(default=T_D, ge=0)

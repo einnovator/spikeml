@@ -259,16 +259,16 @@ class LIConnectorMonitorViewer(ConnectorMonitorViewer):
                 self._plot_spikes(['Wn'], tt=tt, callback=lambda ax: self._plot_input(ax), options=options, ax=axs[k])
                 k += 1
 
-            def _plot_Cx(ax):
+            def _plot_Cx(ax, k):
                 self._plot_input(ax)
                 if ref is not None and ref.params is not None:
-                    ax.hlines([ref.params.c_k], 0, len(Wp), color='r', lw=.5, linestyle= '--')
+                    ax.hlines([k], 0, len(Wp), color='r', lw=.5, linestyle= '--')
 
             if filter('_Cp', options, ref):                   
-                self._plot_mt(['_Cp'], callback=_plot_Cx, options=options, ax=axs[k])
+                self._plot_mt(['_Cp'], callback=lambda ax: _plot_Cx(ax, ref.params.k_p), options=options, ax=axs[k])
                 k += 1
             if filter('_Cn', options, ref):        
-                self._plot_mt(['_Cn'], callback=_plot_Cx, options=options, ax=axs[k])
+                self._plot_mt(['_Cn'], callback=lambda ax: _plot_Cx(ax, ref.params.k_n), options=options, ax=axs[k])
                 k += 1            
 
             if filter('Zp', options, ref):

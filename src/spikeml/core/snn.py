@@ -331,8 +331,8 @@ class SimpleLayer(Layer):
                  callback: Optional[Any] = None) -> None:
         super().__init__(name=name, params=params, auto_sample=auto_sample, monitor=monitor, viewer=viewer, callback=callback)
         self.M = M
-        if isinstance(M, Connector):
-            M._parent = self
+        if isinstance(self.M, Connector):
+            self.M._parent = self
         self.shape = self.M.shape if M is not None else None
         self.n = None
         if self.shape is not None:
@@ -396,6 +396,29 @@ class SimpleLayer(Layer):
         if isinstance(self.M, Connector):
             self.M.post_step(s, y)
 
+    def log_connector(self, options: Optional[Dict[str, Any]] = None):
+        if options is None or options.get('log.matrix', True):
+            if hasattr(self.M, 'log'):
+                self.M.log(options)
+            elif self.M is not None:
+                _s = f'{self.name}.' if self.name is not None else ''
+                xdisplay(Markup(f'{_s}M', self.M))
+
+    def log_monitor(self, options: Optional[Dict[str, Any]] = None) -> None:
+        """
+        Log monitor.
+
+        Parameters
+        ----------
+        options : dict, optional
+            Additional logging configuration.
+        """
+        super().log_monitor(options)
+        self.log_connector_monitor(options)
+
+    def log_connector_monitor(self, options: Optional[Dict[str, Any]] = None) -> None:
+        if hasattr(self.M, 'log_monitor'):
+            self.M.log_monitor(options)
 
 class LinearLayer(SimpleLayer):
     """
@@ -455,15 +478,11 @@ class LinearLayer(SimpleLayer):
         
         return self.y,self.zy
 
-    def log(self, options=None):
+    def log(self, options: Optional[Dict[str, Any]] = None) -> None:
         print(f'{self.name}: s={self.s} | zs={self.zs}-> y={self.y} | zy={self.zy}') 
+        self.log_connector(options)
 
-        if options is None or options.get('log.matrix', True):
-            if isinstance(self.M, Connector):
-                self.M.log(options)
-            else:
-                print(self.M)
-
+            
 class SNN(SimpleLayer):
     """
     Leaky-Integrator Spiking Neural Network layer with adaptive threshold and random noise.
@@ -532,7 +551,8 @@ class SNN(SimpleLayer):
         self.x = np.clip(self.x, 0, None)
         self.x +=  -self.x*1/self.params.t_x    
         
-        self.M.propagate(zs, zy, context)
+        if hasattr(self.M, 'propagate'):       
+            self.M.propagate(zs, zy, context)
 
         self.y, self.zy = y, zy
         self.r = r
@@ -544,11 +564,11 @@ class SNN(SimpleLayer):
         
         return self.y,self.zy
 
-    def log(self, options=None):
+    def log(self, options: Optional[Dict[str, Any]] = None) -> None:
         print(f'{self.name}: s={self.s} | zs={self.zs} ; r={self.r} -> x={self.x}; k_x={self.x} -> y={self.y} | zy={self.zy}') 
 
-        if options is None or options.get('log.matrix', True):
-            self.M.log(options)
+        self.log_connector(options)
+
 
 
 class SSNN(SimpleLayer):
@@ -623,7 +643,8 @@ class SSNN(SimpleLayer):
         zy = spike(y, self.params)
         self.y, self.zy = y, zy
          
-        self.M.propagate(zs, zy, context)
+        if hasattr(self.M, 'propagate'):
+            self.M.propagate(zs, zy, context)
             
         self.b = bias_update(self.b, self.y, params=self.params)        
 
@@ -641,22 +662,8 @@ class SSNN(SimpleLayer):
         """
         print(f'{self.name}: s={self.s} | zs={self.zs} -> y={self.y} | zy={self.zy}') 
 
-        if options is None or options.get('log.matrix', True):
-            self.M.log(options)
-            
-               
-    def log_monitor(self, options: Optional[Dict[str, Any]] = None) -> None:
-        """
-        Log monitor.
+        self.log_connector(options)
 
-        Parameters
-        ----------
-        options : dict, optional
-            Additional logging configuration.
-        """
-        super().log_monitor(options)
-        if getattr(self.M, 'log_monitor'):
-            self.M.log_monitor(options)
             
 class SSensor(Layer):
     """
@@ -696,7 +703,7 @@ class SSensor(Layer):
         
         return self.s,self.zs
 
-    def log(self, options=None):
+    def log(self, options: Optional[Dict[str, Any]] = None) -> None:
         _s = f'(_sx={self._sx}; _s={self._s}) ; ' if self.R>1 else ''
         print(f'{self.name}: {_s}sx={self.sx}; s={self.s}  -> zs={self.zs}') 
 
@@ -776,11 +783,11 @@ class LinearConnector(Connector):
         self.viewer=viewer
         self.monitor=monitor
 
-    def render(self, options=None):
+    def render(self, options: Optional[Dict[str, Any]] = None) -> None:
         super().render(options)
 
-    def __repr__(self):
-        return f"{type(self).__name__}({self.M!r})"
+    #def __repr__(self):
+    #    return f"{type(self).__name__}({self.M!r})"
         
     def __matmul__(self, other):
         if hasattr(other, 'M'):
@@ -822,7 +829,7 @@ class LinearConnector(Connector):
         self._M = self.M
         return self.M
     
-    def log(self, options=None):
+    def log(self, options: Optional[Dict[str, Any]] = None) -> None:
         _s = f'{self.name}.' if self.name is not None else ''
         xdisplay(Markup(f'{_s}M', self.M))
         
@@ -847,7 +854,7 @@ class RateConnector(LinearConnector):
         #TODO: update M
         return self.M
 
-    def log(self, options=None):
+    def log(self, options: Optional[Dict[str, Any]] = None) -> None:
         def _m(M):
             return (M[0]+M[1],M[0],M[1]) if type(M)==tuple else M
 
@@ -949,12 +956,12 @@ class LIConnector(LinearConnector):
         Zn = np.outer(zy, 1-zs)
         Cp += Zp
         Cn += Zn
-        Wp = (Cp >= params.c_k).astype(int)
-        Wn = (Cn >= params.c_k).astype(int)
+        Wp = (Cp >= params.k_p).astype(int)
+        Wn = (Cn >= params.k_n).astype(int)
         self._Cp[...]  = Cp
         self._Cn[...] = Cn
-        Cp -= Wp*params.c_k
-        Cn -= Wn*params.c_k
+        Cp -= Wp*params.k_p
+        Cn -= Wn*params.k_n
         Cp = np.clip(Cp, 0, None)
         Cn = np.clip(Cn, 0, None)
         if params.t_c>0:
@@ -979,7 +986,7 @@ class LIConnector(LinearConnector):
         return M_, Cp, Cn, dM, dMp, dMn, Zp, Zn, Wp, Wn
 
 
-    def log(self, options=None):
+    def log(self, options: Optional[Dict[str, Any]] = None) -> None:
         if options is None or options.get('matrix.details', True):
             xdisplay(Markup('_M', self._M), Markup('Cp', self.Cp), Markup('Cn', self.Cn),  Markup('Zp', self.Zp), Markup('Zn', self.Zn), Markup('Wp', self.Wp), Markup('Wn', self.Wn), Markup('dM', self.dM), Markup('dMp', self.dMp), Markup('dMn', self.dMn), Markup('M', self.M))
         else:
@@ -1003,7 +1010,7 @@ class LIConnector2(LinearConnector):
             dMp=(dMpp,dMpn)
             dMn=(dMnp,dMnn)
             
-    def log(self, options=None):
+    def log(self, options: Optional[Dict[str, Any]] = None) -> None:
         def _m(M):
             return (M[0]+M[1],M[0],M[1]) if type(M)==tuple else M
 
