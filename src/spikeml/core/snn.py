@@ -288,6 +288,43 @@ def bias_update(
         print(f'b: {b} -> {b_} ({params.t_b}) ; y_={y_}  y0_={y0_}')
     return b_
 
+def bias_update2(
+    b: np.ndarray,
+    y: np.ndarray,
+    params: 'SSNNParams',
+    debug: bool = False
+) -> np.ndarray:
+    """
+    Update the adaptive bias for a stochastic spike layer.
+
+    Parameters
+    ----------
+    b : np.ndarray
+        Current bias vector.
+    y : np.ndarray
+        Output of the layer.
+    params : SSNNParams
+        Parameters containing adaptive threshold settings.
+    debug : bool
+        If True, prints debug info.
+
+    Returns
+    -------
+    np.ndarray
+        Updated bias vector.
+    """
+    if params.t_b<=0:
+        return b
+    y_ = ((y-params.vmin)/(params.vmax-params.vmin))**params.e_b
+    y0_ = ((params.vmax-y)/(params.vmax-params.vmin))**params.e_b*2
+
+    db = y_ * (1/params.t_b) - y0_ * (1/(params.t_b*2))
+    b_ = b + db
+    b_[b_<0] = 0
+    if debug:
+        print(f'b: {b} -> {b_} ({params.t_b}) ; y_={y_}  y0_={y0_}')
+    return b_
+
 class Layer(Module):
     """
     Base class for neural layers.
@@ -674,12 +711,14 @@ class SSensor(Layer):
         super().__init__(name=name, auto_sample=auto_sample, callback=callback)
         if n is None:
             n = params.size
-        self.s = np.zeros(n)
         self.sx = np.zeros(n)
-        self.zs = np.zeros(n)
         self.R = R
-        self._s = np.zeros(n*R)
-        self._sx = np.zeros(n*R)
+        self.s = np.zeros(n*R)
+        self.zs = np.zeros(self.s.shape[0])
+        self._s = np.zeros(self.s.shape[0])
+        self._sx = np.zeros(self.s.shape[0])
+        self.b = np.zeros(self.s.shape[0])
+
         self.shape = self.s.shape
         if params is None:
             params = SSensorParams()
@@ -699,8 +738,13 @@ class SSensor(Layer):
         self._sx = sx
         self.s = upsample(s, R)
         self.sx = upsample(sx, R)
-        self.zs = spike(self.s, self.params)
+        s_ = self.s
+        if self.b is not None:
+            s_ -=  self.b
+        self.zs = spike(s_, self.params)
         
+        self.b = bias_update(self.b, s_, params=self.params)        
+
         return self.s,self.zs
 
     def log(self, options: Optional[Dict[str, Any]] = None) -> None:
@@ -964,9 +1008,11 @@ class LIConnector(LinearConnector):
         Cn -= Wn*params.k_n
         Cp = np.clip(Cp, 0, None)
         Cn = np.clip(Cn, 0, None)
-        if params.t_c>0:
-            a = 1 - 1/params.t_c
+        if params.t_cp>0:
+            a = 1 - 1/params.t_cp
             Cp *= a
+        if params.t_cn>0:
+            a = 1 - 1/params.t_cn
             Cn *= a
         dMp = (1/params.t_p)*(Wp) if params.t_p>0 else None #LTP
         dMn = -(1/params.t_d)*(Wn) if params.t_d>0 else None #LTD

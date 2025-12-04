@@ -30,7 +30,8 @@ CMAX = 2   # Maximum synaptic connection weight
 CMIN = -2  # Minimum synaptic connection weight
 T_P = 1    # Characteristic time for potentiation
 T_D = 5    # Characteristic time for depression
-T_C = 10   # Characteristic time for connection decay
+T_CP = 10   # Characteristic time for pre-LTP connection decay
+T_CN = 10   # Characteristic time for pre-LTD connection decay
 K_P = 2    # LTP threshold
 K_N = 2    # LTD threshold
 C_IN = 0   # Connection normalization (inbound)
@@ -115,8 +116,10 @@ class ConnectorParams(Params):
     k_n : float
         LTD activation threshold.
 
-    t_c : float
-        Time constant for connection decay.
+    t_cp : float
+        Time constant for connection pre-LTP decay.
+    t_cn : float
+        Time constant for connection pre-LTD decay.
     t_p : float
         Time constant for LTP (potentiation).
     t_d : float
@@ -138,7 +141,8 @@ class ConnectorParams(Params):
     """
     k_p: float = Field(default=K_P)
     k_n: float = Field(default=K_N)
-    t_c: float = Field(default=T_C, ge=0)
+    t_cp: float = Field(default=T_CP, ge=0)
+    t_cn: float = Field(default=T_CN, ge=0)
     t_p: float = Field(default=T_P, ge=0)
     t_d: float = Field(default=T_D, ge=0)
     c_in: float = Field(default=C_IN)
@@ -170,7 +174,7 @@ class SpikeParams(NNParams):
         s = str(vars(self))
         return f'{type(self).__name__}({s})'        
 
-class SSensorParams(SpikeParams):
+class BiasParams(Params):
     """
     Parameters for standard Spiking Neural Network (SNN) models.
 
@@ -178,16 +182,30 @@ class SSensorParams(SpikeParams):
 
     Attributes
     ----------
-    ssize : int
-        Number of sensor units
+    t_b : float
+        Characteristic time for adaptive threshold dynamics.
+    e_b : float
+        Exponent controlling adaptive threshold scaling.
+    """    
+    t_b: float = Field(default=T_B, ge=0)
+    e_b: float = Field(default=E_B, ge=0)
+
+class SSensorParams(SpikeParams, BiasParams):
+    """
+    Parameters for standard Spiking Neural Network (SNN) models.
+
+    Combines spiking dynamics with synaptic plasticity and leaky integration.
+
+    Attributes
+    ----------
     upsample_method: UpsampleMethod
-        upsampling method. Defualt: UUpsampleMethodsamplingMethod.REPEAT'
+        upsampling method. Default: UpsampleMethod.REPEAT'
     """    
     upsample_method: UpsampleMethod = Field(default=UpsampleMethod.REPEAT)
     
     pass
 
-class SNNParams(SpikeParams, ConnectorParams): #TODO: -> NNParams
+class SNNParams(SpikeParams, BiasParams, ConnectorParams): #TODO: -> NNParams
     """
     Parameters for standard leaky-integrate-fire Spiking Neural Network (SNN) models.
 
@@ -207,7 +225,7 @@ class SNNParams(SpikeParams, ConnectorParams): #TODO: -> NNParams
     r_sd: float = Field(default=R_SD, ge=0)
 
     
-class SSNNParams(SpikeParams, ConnectorParams):
+class SSNNParams(SpikeParams, BiasParams, ConnectorParams):
     """
     Parameters for stochastic adaptive Spiking Neural Network (SNN) models.
 
@@ -222,14 +240,7 @@ class SSNNParams(SpikeParams, ConnectorParams):
         Spike probability scaling factor.
     pmax : float
         Maximum spike probability cutoff.
-    t_b : float
-        Characteristic time for adaptive threshold dynamics.
-    e_b : float
-        Exponent controlling adaptive threshold scaling.
     """    
-    e_z: float = Field(default=E_Z)
     pf: float = Field(default=PF)
     pmax: float = Field(default=PMAX, ge=0, le=1)
-    t_b: float = Field(default=T_B, ge=0)
-    e_b: float = Field(default=E_B, ge=0)
 

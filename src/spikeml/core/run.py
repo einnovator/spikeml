@@ -145,7 +145,7 @@ def run(
 
 def run_with_feedback(
     ref: Any,
-    source: Any,
+    source: Union[Source|np.ndarray],
     params: Optional[Any] = None,
     feedback: bool = True,
     T: Optional[int] = None,
@@ -239,6 +239,198 @@ def run_with(
 
     result = { 'ref': ref, 'context': context }
     return result
+
+def nrun_with_feedback(
+    nn_creator: Callable[[int, int], Any],
+    source: Any,
+    runs: int = 1,
+    T: Optional[int] = None,
+    params: Optional[Any] = None,
+    feedback: bool = True,
+    callback: Optional[Callable[[Context], bool]] = None,
+    report_run: bool = False,
+    plot_run: bool = False,
+    report: bool = False,
+    plot: bool = False,
+    log_runs: int = 1,
+    log_step: int = -1,
+    options: Optional[Dict[str, Any]] = None
+) -> List[Dict[str, Any]]:
+    """
+    Execute multiple neural network simulations sequentially.
+
+    This function repeatedly creates and runs neural network instances using a
+    user-supplied constructor. Each simulation can share the same input stimulus
+    but operate with independent network initializations or parameters.
+
+    Parameters
+    ----------
+    nn_creator : callable
+        Function that creates a neural network instance for a given run.
+        Called as `nn_creator(run_index, total_runs)` for each run.
+    source : Source
+        Signal source        
+    runs : int, optional
+        Number of independent runs to execute. Default is 1.
+    T : int, optional
+        Number of time steps per run. If `None`, inferred from `ss`.
+    params : Any, optional
+        Simulation parameters passed to each run.
+    feedback : bool, optional
+        Whether to enable network feedback during simulation. Default is True.
+    callback : callable, optional
+        Optional function called at each simulation step with the current
+        `Context` object. If it returns `False`, the run may terminate early.
+    report_run : bool, optional
+        Whether to display a textual report after each run. Default is False.
+    plot_run : bool, optional
+        Whether to plot intermediate results after each run. Default is False.
+    report : bool, optional
+        Whether to output a combined summary report after all runs. Default is False.
+    plot : bool, optional
+        Whether to generate final plots for aggregated results. Default is False.
+    log_runs : int, optional
+        Frequency (in runs) at which progress and debug logs are printed.
+        Default is 1 (log every run).
+    log_step : int, optional
+        Interval of step-level logging within each run. `-1` disables step logging.
+        Default is -1.
+    options : dict, optional
+        Additional keyword arguments passed to each call of `run()`.
+
+    Returns
+    -------
+    results : list of dict
+        List containing the result dictionary from each run, matching the
+        structure returned by the underlying `run()` function.
+
+    Notes
+    -----
+    - Each run creates a fresh network instance using `nn_creator`.
+    - Useful for performing Monte Carlo simulations or parameter sweeps.
+    - Logging can be controlled via `log_runs` and `log_step`.
+
+    Examples
+    --------
+    >>> def create_net(i, total):
+    ...     return make_ssnn_chain(name=f'nn{n}', size=size, params=params)
+    >>> ss = signal_pulse(2, T=100, L=3, s=[0,1], value=.5)
+    >>> params = SSNNParams()
+    >>> results = run_with_feedback(nn_creator= create_net, runs=3, source=ss, params=params)
+    >>> len(results)
+    """
+    results = []
+    for n in range(0,runs):
+        debug_ = (log_runs>0 and n%log_runs==0)
+        if debug_:
+            print(f'run: {n+1}/{runs}')
+        nn = nn_creator(n, runs)
+        result = run_with_feedback(nn, source, T=T, params=params, feedback=feedback, callback=callback, report=report_run, plot=plot_run, log_step=log_step, options=options)
+        if debug_:
+            print(f'  -> {result}')
+        results.append(result) 
+    if report:
+        pass
+    if plot:
+        pass
+    
+    return Results(results)
+
+def nrun_with(
+    nn_creator: Callable[[int, int], Any],
+    runs: int = 1,
+    T: Optional[int] = None,
+    params: Optional[Any] = None,
+    feedback: bool = True,
+    callback: Optional[Callable[[Context], bool]] = None,
+    report_run: bool = False,
+    plot_run: bool = False,
+    report: bool = False,
+    plot: bool = False,
+    log_runs: int = 1,
+    log_step: int = -1,
+    options: Optional[Dict[str, Any]] = None
+) -> List[Dict[str, Any]]:
+    """
+    Execute multiple neural network simulations sequentially.
+
+    This function repeatedly creates and runs neural network instances using a
+    user-supplied constructor. Each simulation can share the same input stimulus
+    but operate with independent network initializations or parameters.
+
+    Parameters
+    ----------
+    nn_creator : callable
+        Function that creates a neural network instance for a given run.
+        Called as `nn_creator(run_index, total_runs)` for each run.
+    source : Source
+        Signal source        
+    runs : int, optional
+        Number of independent runs to execute. Default is 1.
+    T : int, optional
+        Number of time steps per run. If `None`, inferred from `ss`.
+    params : Any, optional
+        Simulation parameters passed to each run.
+    feedback : bool, optional
+        Whether to enable network feedback during simulation. Default is True.
+    callback : callable, optional
+        Optional function called at each simulation step with the current
+        `Context` object. If it returns `False`, the run may terminate early.
+    report_run : bool, optional
+        Whether to display a textual report after each run. Default is False.
+    plot_run : bool, optional
+        Whether to plot intermediate results after each run. Default is False.
+    report : bool, optional
+        Whether to output a combined summary report after all runs. Default is False.
+    plot : bool, optional
+        Whether to generate final plots for aggregated results. Default is False.
+    log_runs : int, optional
+        Frequency (in runs) at which progress and debug logs are printed.
+        Default is 1 (log every run).
+    log_step : int, optional
+        Interval of step-level logging within each run. `-1` disables step logging.
+        Default is -1.
+    options : dict, optional
+        Additional keyword arguments passed to each call of `run()`.
+
+    Returns
+    -------
+    results : list of dict
+        List containing the result dictionary from each run, matching the
+        structure returned by the underlying `run()` function.
+
+    Notes
+    -----
+    - Each run creates a fresh network instance using `nn_creator`.
+    - Useful for performing Monte Carlo simulations or parameter sweeps.
+    - Logging can be controlled via `log_runs` and `log_step`.
+
+    Examples
+    --------
+    >>> def create_net(i, total):
+    ...     return make_ssnn_chain(name=f'nn{n}', size=size, params=params)
+    >>> ss = signal_pulse(2, T=100, L=3, s=[0,1], value=.5)
+    >>> params = SSNNParams()
+    >>> results = run_with(nn_creator= create_net, runs=3, source=ss, params=params)
+    >>> len(results)
+    """
+    results = []
+    for n in range(0,runs):
+        debug_ = (log_runs>0 and n%log_runs==0)
+        if debug_:
+            print(f'run: {n+1}/{runs}')
+        ref = nn_creator(n, runs)
+        result = run_with(ref=ref, T=T, params=params, feedback=feedback, callback=callback, report=report_run, plot=plot_run, log_step=log_step, options=options)
+        if debug_:
+            print(f'  -> {result}')
+        results.append(result) 
+    if report:
+        pass
+    if plot:
+        pass
+    
+    return Results(results)
+
 
 def nrun(
     nn_creator: Callable[[int, int], Any],
