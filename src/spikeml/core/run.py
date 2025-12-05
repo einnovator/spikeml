@@ -20,6 +20,7 @@ class Context():
         t (int): Current simulation timestep (>0).
     """
     t: int = 0
+    phase: Any = None
     
     def set_attr(self, key, value):
         setattr(self, key, value)
@@ -159,6 +160,25 @@ def run_with_feedback(
     if isinstance(source, np.ndarray):
         source = SimpleSignal(source)    
     ref_ = FeedbackAdapter(ref=ref, source=source, feedback=feedback, params=params)
+    return run_with(ref=ref_, T=T, report=report, plot=plot, log_step=log_step, callback=callback, options=options)
+
+def run_with_phases(
+    ref: Any,
+    source: Union[Source|np.ndarray],
+    params: Optional[Any] = None,
+    phases: Optional[Any] = 2,
+    feedback: bool = True,
+    T: Optional[int] = None,
+    report: bool = True,
+    plot: bool = True,
+    log_step: int = 1,
+    callback: Optional[Callable[[Context], bool]] = None,
+    options: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    
+    if isinstance(source, np.ndarray):
+        source = SimpleSignal(source)    
+    ref_ = PhasedFeedbackAdapter(ref=ref, source=source, phases=phases, feedback=feedback, params=params)
     return run_with(ref=ref_, T=T, report=report, plot=plot, log_step=log_step, callback=callback, options=options)
     
 def run_with(

@@ -331,14 +331,15 @@ class Layer(Module):
 
     Attributes:
         name: Optional name of the layer.
+        phase: Phase where layer is active. If None implies all. (Default: None)
         params: Parameters associated with the layer.
         auto_sample: Whether to automatically sample during updates.
         monitor: Optional monitor object for logging or visualization.
         viewer: Optional viewer object for visualization.
         callback: Optional callback function.
     """
-
     def __init__(self,
+                 phase: Optional[Any] = None,
                  name: Optional[str] = None,
                  params: Optional[Any] = None,
                  auto_sample: bool = False,
@@ -346,7 +347,7 @@ class Layer(Module):
                  viewer: Optional[Any] = None,
                  callback: Optional[Any] = None):
         super().__init__(name=name, params=params, auto_sample=auto_sample, monitor=monitor, viewer=viewer, callback=callback)
-
+        self.phase = phase
 
 class SimpleLayer(Layer):
     """
@@ -360,13 +361,14 @@ class SimpleLayer(Layer):
 
     def __init__(self,
                  M: Optional[Any] = None,
+                 phase: Optional[Any] = None,
                  name: Optional[str] = None,
                  params: Optional[Any] = None,
                  auto_sample: bool = False,
                  monitor: Optional[Any] = None,
                  viewer: Optional[Any] = None,
                  callback: Optional[Any] = None) -> None:
-        super().__init__(name=name, params=params, auto_sample=auto_sample, monitor=monitor, viewer=viewer, callback=callback)
+        super().__init__(phase=phase, name=name, params=params, auto_sample=auto_sample, monitor=monitor, viewer=viewer, callback=callback)
         self.M = M
         if isinstance(self.M, Connector):
             self.M._parent = self
@@ -472,13 +474,14 @@ class LinearLayer(SimpleLayer):
 
     def __init__(self,
                  M: Optional[Any] = None,
+                 phase: Optional[Any] = None,
                  params: Optional[Any] = None,
                  auto_sample: bool = False,
                  monitor: Union[bool, Any] = True,
                  viewer: Union[bool, Any] = True,
                  name: Optional[str] = None,
                  callback: Optional[Any] = None) -> None:
-        super().__init__(M=M, name=name, auto_sample=auto_sample, callback=callback)
+        super().__init__(M=M, phase=phase, name=name, auto_sample=auto_sample, callback=callback)
         self.s,self.zs = None,None
         self.y,self.zy = None,None
         self.r = None
@@ -539,13 +542,14 @@ class SNN(SimpleLayer):
     def __init__(self,
                  M: Optional[Any] = None,
                  x: Optional[np.ndarray] = None,
+                 phase: Optional[Any] = None,
                  params: Optional[Any] = None,
                  auto_sample: bool = False,
                  monitor: Union[bool, Any] = True,
                  viewer: Union[bool, Any] = True,
                  name: Optional[str] = None,
                  callback: Optional[Any] = None) -> None:
-        super().__init__(M=M, name=name, auto_sample=auto_sample, callback=callback)
+        super().__init__(M=M, phase=phase, name=name, auto_sample=auto_sample, callback=callback)
         self.x = x if x is not None else np.zeros(self.n) if self.n is not None else None
         self._x = x
         self.k_x = np.ones(self.x.shape)*params.k_x if self.x is not None else None
@@ -627,6 +631,7 @@ class SSNN(SimpleLayer):
     def __init__(self,
                  M: Optional[Any] = None,
                  x: Optional[np.ndarray] = None,
+                 phase: Optional[Any] = None,
                  params: Optional[Any] = None,
                  auto_sample: bool = False,
                  monitor: Union[bool, Any] = True,
@@ -634,7 +639,7 @@ class SSNN(SimpleLayer):
                  name: Optional[str] = None,
                  callback: Optional[Any] = None) -> None:
         
-        super().__init__(M=M, name=name, auto_sample=auto_sample, callback=callback)
+        super().__init__(M=M, phase=phase, name=name, auto_sample=auto_sample, callback=callback)
         self.b = np.zeros(self.n)
         self.s,self.zs = None,None
         self.y,self.zy = None,None
@@ -707,8 +712,15 @@ class SSensor(Layer):
     Spike Sensor. 
     """
 
-    def __init__(self, n=None, R=1, params=None, auto_sample=False, monitor=True, viewer=True, name=None, callback=None):
-        super().__init__(name=name, auto_sample=auto_sample, callback=callback)
+    def __init__(self, n=None, R=1,
+                 phase: Optional[Any] = None,
+                 params: Optional[Any] = None,
+                 auto_sample: bool = False,
+                 monitor: Union[bool, Any] = True,
+                 viewer: Union[bool, Any] = True,
+                 name: Optional[str] = None,
+                 callback: Optional[Any] = None) -> None:
+        super().__init__(phase=phase, name=name, auto_sample=auto_sample, callback=callback)
         if n is None:
             n = params.size
         self.sx = np.zeros(n)
@@ -758,8 +770,10 @@ class DSSNN(SSNN):
     Dynamic Stochastic Spike Layer with Adaptive-Threshold
     """
 
-    def __init__(self, M=None, Mx=None, b=None, x=None, params=None, auto_sample=False, monitor=None, viewer=None, name=None, callback=None):
-        super().__init__(M=M, b=b, name=name, auto_sample=auto_sample, monitor=None, viewer=None, callback=callback)
+    def __init__(self, M=None, Mx=None, b=None, x=None,
+                 phase: Optional[Any] = None,
+                params=None, auto_sample=False, monitor=None, viewer=None, name=None, callback=None):
+        super().__init__(M=M, b=b, phase=phase, name=name, auto_sample=auto_sample, monitor=None, viewer=None, callback=callback)
         self.x = x if x is not None else np.zeros(self.n, dtype=float)
         if monitor==True:
             monitor = DSSNNMonitor(ref=self)
@@ -793,8 +807,9 @@ class Connector(Component):
     Neural Connections base class.
     """
 
-    def __init__(self, params=None, auto_sample=True, monitor=None, viewer=None, name=None, callback=None):
-        super().__init__(name=name, params=params, auto_sample=auto_sample, monitor=monitor, viewer=viewer, callback=callback)
+    def __init__(self, phase: Optional[Any] = None,
+                 params=None, auto_sample=True, monitor=None, viewer=None, name=None, callback=None):
+        super().__init__(phase=phase, name=name, params=params, auto_sample=auto_sample, monitor=monitor, viewer=viewer, callback=callback)
 
     def step(self, s, y, context: Optional[Any]=None):
         y = self.propagate(s, y, context)
@@ -811,8 +826,9 @@ class LinearConnector(Connector):
     Linear Connector. Connection weight are static. Sub-class implement specific update rules and dynamics.
     """
 
-    def __init__(self, M=None, size=None, params=None, monitor=True, viewer=None, name=None, callback=None):
-        super().__init__(params=params, name=name, callback=callback)
+    def __init__(self, M=None, size=None, phase: Optional[Any] = None,
+        params=None, monitor=True, viewer=None, name=None, callback=None):
+        super().__init__(phase=phase, params=params, name=name, callback=callback)
         if params is None:
             params = ConnectorParams()
         self.params = params
@@ -883,8 +899,9 @@ class RateConnector(LinearConnector):
     Linear Connector with rate-based update rules.
     """
 
-    def __init__(self, M=None, size=None, params=None, monitor=True, viewer=True, name=None, callback=None):
-        super().__init__(M=M,  size=size, params=params, monitor=monitor, viewer=viewer, name=name, callback=callback)
+    def __init__(self, M=None, size=None, phase: Optional[Any] = None,
+        params=None, monitor=True, viewer=True, name=None, callback=None):
+        super().__init__(phase=phase, M=M,  size=size, params=params, monitor=monitor, viewer=viewer, name=name, callback=callback)
         if monitor==True:
             monitor = ConnectorMonitor(ref=self)
         if viewer==True:
@@ -910,8 +927,10 @@ class LIConnector(LinearConnector):
     Leaky-integrate LTP/LTD connections.
     """
 
-    def __init__(self, M=None, size=None, params=None, monitor=True, viewer=True, name=None, callback=None):
-        super().__init__(M=M, size=size, params=params, name=name, callback=callback)
+    def __init__(self, M=None, size=None,
+                phase: Optional[Any] = None,
+                params=None, monitor=True, viewer=True, name=None, callback=None):
+        super().__init__(phase=phase, M=M, size=size, params=params, name=name, callback=callback)
         if self.M is not None:
             self.Cp, self.Cn = np.zeros(self.M.shape), np.zeros(self.M.shape)
             self._Cp, self._Cn = np.zeros(self.M.shape), np.zeros(self.M.shape)
@@ -1039,8 +1058,10 @@ class LIConnector(LinearConnector):
             xdisplay(Markup('M', self.M, Markup('Cp', self.Cp), Markup('Cn', self.Cn)))
                 
 class LIConnector2(LinearConnector):
-    def __init__(self, Mp=None, Mn=None, params=None, monitor=True, viewer=True, name=None, callback=None):
-        super().__init__(params=params, name=name, callback=callback)
+    def __init__(self, Mp=None, Mn=None, 
+        phase: Optional[Any] = None,
+        params=None, monitor=True, viewer=True, name=None, callback=None):
+        super().__init__(phase=phase, params=params, name=name, callback=callback)
         self.M = M
 
         if not type(M)==tuple:
