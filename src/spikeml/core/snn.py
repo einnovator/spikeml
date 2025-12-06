@@ -14,6 +14,9 @@ from spikeml.core.matrix import matrix_split, normalize_matrix, _mult, cmask, cm
 from spikeml.utils.nb_util import xdisplay, Markup
 from spikeml.core.signal import Source
 
+PHASE_PROPAGATION=0
+PHASE_LEARNING=1
+
 def __cov_update(M, s=None, y=None, zc_p=None, zc_n=None, params=None, debug=False):
     s = s
     y = y
@@ -349,6 +352,14 @@ class Layer(Module):
         super().__init__(name=name, params=params, auto_sample=auto_sample, monitor=monitor, viewer=viewer, callback=callback)
         self.phase = phase
 
+    def is_propagation(context: Optional[Any]=None)
+        return context is None or context.phase is None or context.phase==PHASE_PROPAGATION
+
+    def is_learning(context: Optional[Any]=None)
+        return context is None or context.phase is None or context.phase==PHASE_LEARNING
+
+
+
 class SimpleLayer(Layer):
     """
     Base class for layers with an internal connector or matrix `M`.
@@ -505,16 +516,19 @@ class LinearLayer(SimpleLayer):
         Returns:
             Tuple containing updated potentials (y) and spikes (zy).
         """
-        s, zs = s if isinstance(s, tuple) else (s, None)
-        self.s, self.zs = s, zs
+        if is_propagation(context):
+            s, zs = s if isinstance(s, tuple) else (s, None)
+            self.s, self.zs = s, zs
 
-        y = self.M @ s
-        zy = self.M @ zs if zs is not None else None
+            y = self.M @ s
+            zy = self.M @ zs if zs is not None else None
 
-        if isinstance(self.M, Connector):
-            self.M.propagate(zs, zy, context)
+            self.y, self.zy = y, zy
 
-        self.y, self.zy = y, zy
+        if is_learning(context):
+            if hasattr(self.M, 'propagate'):       
+                self.M.propagate(zs, zy, context)
+
         
         return self.y,self.zy
 
@@ -576,29 +590,31 @@ class SNN(SimpleLayer):
         Returns:
             Tuple containing updated potentials (y) and spikes (zy).
         """
-        s, zs = s if isinstance(s, tuple) else (s, None)
-        if zs is None:
-            zs = spike(s, self.params)
-        self.s, self.zs = s, zs
+        if is_propagation(context):
+            s, zs = s if isinstance(s, tuple) else (s, None)
+            if zs is None:
+                zs = spike(s, self.params)
+            self.s, self.zs = s, zs
 
-        y = self.M @ zs
-        self.x += y
-        r = np.random.normal(loc=0, scale=self.params.r_sd, size=self.x.shape[0])
-        self.x += r
-        y[y>self.k_x] = 0
-        zy = (self.x>self.k_x).astype(int)
-        self._x = self.x
-        self.x -= zy*self.k_x         
-        self.x = np.clip(self.x, 0, None)
-        self.x +=  -self.x*1/self.params.t_x    
-        
-        if hasattr(self.M, 'propagate'):       
-            self.M.propagate(zs, zy, context)
+            y = self.M @ zs
+            self.x += y
+            r = np.random.normal(loc=0, scale=self.params.r_sd, size=self.x.shape[0])
+            self.x += r
+            y[y>self.k_x] = 0
+            zy = (self.x>self.k_x).astype(int)
+            self._x = self.x
+            self.x -= zy*self.k_x         
+            self.x = np.clip(self.x, 0, None)
+            self.x +=  -self.x*1/self.params.t_x    
+            self.y, self.zy = y, zy
+            self.r = r
 
-        self.y, self.zy = y, zy
-        self.r = r
-        
-        #TODO: update k_x
+            #TODO: update k_x
+
+        if is_learning(context):
+            if hasattr(self.M, 'propagate'):       
+                self.M.propagate(zs, zy, context)
+
                             
         #if debug:
         #print('s:', s, '; zs:', zs, '->', 'x:', self.x, '; k_x:', self.k_x, ' | y:', y, ' ; zy:', zy)  
@@ -673,23 +689,25 @@ class SSNN(SimpleLayer):
         Returns:
             Tuple containing updated potentials (y) and spikes (zy).
         """
-        s, zs = s if isinstance(s, tuple) else (s, None)
-        if zs is None:
-            zs = spike(s, self.params)
-        self.s, self.zs = s, zs
+        if is_propagation(context):        
+            s, zs = s if isinstance(s, tuple) else (s, None)
+            if zs is None:
+                zs = spike(s, self.params)
+            self.s, self.zs = s, zs
 
-        _y = self.M @ s
-        if self.b is not None:
-            _y -=  self.b
-        y = np.clip(_y, self.params.vmin, self.params.vmax)
-        zy = spike(y, self.params)
-        self.y, self.zy = y, zy
-         
-        if hasattr(self.M, 'propagate'):
-            self.M.propagate(zs, zy, context)
+            _y = self.M @ s
+            if self.b is not None:
+                _y -=  self.b
+            y = np.clip(_y, self.params.vmin, self.params.vmax)
+            zy = spike(y, self.params)
+            self.y, self.zy = y, zy
+
+            self.b = bias_update(self.b, self.y, params=self.params)        
+    
+        if is_learning(context):                
+            if hasattr(self.M, 'propagate'):
+                self.M.propagate(zs, zy, context)
             
-        self.b = bias_update(self.b, self.y, params=self.params)        
-
         #if debug:
         #   print('s:', s, '; zs:', zs,  '-> y:', y, ' ; zy:', zy, ' ; b:', self.b)  
         
@@ -743,19 +761,20 @@ class SSensor(Layer):
         self.monitor=monitor
                 
     def propagate(self, s, context: Optional[Any]=None):
-        s,sx = (s[0],s[1]) if isinstance(s, tuple) else (s,s) 
-        R = self.s.shape[0] // s.shape[0]                    
-        self.R = R
-        self._s = s
-        self._sx = sx
-        self.s = upsample(s, R)
-        self.sx = upsample(sx, R)
-        s_ = self.s
-        if self.b is not None:
-            s_ -=  self.b
-        self.zs = spike(s_, self.params)
-        
-        self.b = bias_update(self.b, s_, params=self.params)        
+        if is_propagation(context):
+            s,sx = (s[0],s[1]) if isinstance(s, tuple) else (s,s) 
+            R = self.s.shape[0] // s.shape[0]                    
+            self.R = R
+            self._s = s
+            self._sx = sx
+            self.s = upsample(s, R)
+            self.sx = upsample(sx, R)
+            s_ = self.s
+            if self.b is not None:
+                s_ -=  self.b
+            self.zs = spike(s_, self.params)
+            
+            self.b = bias_update(self.b, s_, params=self.params)        
 
         return self.s,self.zs
 
@@ -783,22 +802,24 @@ class DSSNN(SSNN):
         self.viewer=viewer
 
     def propagate(self, s, context: Optional[Any]=None):
-        s, zs = s if isinstance(s, tuple) else (s, None)
-        if zs is None:
-            zs = spike(s, self.params)
-        self.s =  s
-        
-        _y = self.M @ s + self.Mx @ self.x
-        if self.b is not None:
-            _y -=  self.b
-        y = np.clip(_y, params.vmin, params.vmax)
-        zy = spike(y, params)    
-        
-        self.M.propagate(zs, zy, context)
-        self.Mx.propagate(zy, zy, context)
+        if is_propagation(context):        
+            s, zs = s if isinstance(s, tuple) else (s, None)
+            if zs is None:
+                zs = spike(s, self.params)
+            self.s =  s
             
-        self.b = bias_update(self.b, self.y, params=params)        
+            _y = self.M @ s + self.Mx @ self.x
+            if self.b is not None:
+                _y -=  self.b
+            y = np.clip(_y, params.vmin, params.vmax)
+            zy = spike(y, params)    
+            
+            self.b = bias_update(self.b, self.y, params=params)        
 
+        if is_learning(context):        
+            self.M.propagate(zs, zy, context)
+            self.Mx.propagate(zy, zy, context)
+                
         return self.y,self.zy
 
 
