@@ -27,3 +27,4 @@ def plot_connector_dist(results):
 def plot_snn_stats(results):
     plot_connector_stats(results)
     plot_connector_dist(results)
+

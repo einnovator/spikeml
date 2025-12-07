@@ -9,6 +9,10 @@ from spikeml.core.env import Source
 from spikeml.core.snn_monitor import SSensorMonitor, LayerMonitor, SNNMonitor, SSNNMonitor, ConnectorMonitor, LIConnectorMonitor
 from spikeml.core.snn_monitor import  ErrorMonitor
 from spikeml.core.snn_viewer import  ErrorMonitorViewer
+from spikeml.core.snn import PHASE_PROPAGATION, PHASE_LEARNING
+
+PHASES2 = [PHASE_PROPAGATION, PHASE_LEARNING]
+
 
 def compute_error(
     s: np.ndarray,
@@ -324,11 +328,12 @@ class PhasedFeedbackAdapter(Adapter):
         super().__init__(ref, name=name, params=params, auto_sample=auto_sample, callback=callback)        
         self.source = source
         self.feedback = feedback
+        if phases is None:
+            phases = PHASES2 
+        elif isinstance(phases, int):
+            phases = range(0, phases)
         self.phases = phases
-        self._phases = _phases
-        if phases is not None and isinstance(phases, int):
-            self._phases = range(0, phases)
-        
+
         self.y, self.zy = None, None
         self.gain = 1
         if feedback:
@@ -377,7 +382,7 @@ class PhasedFeedbackAdapter(Adapter):
             y_ = self.ref(s_, context)
         else:
             y_ = None
-            for phase in self._phases:
+            for phase in self.phases:
                 context.phase = phase
                 y__ = self.ref(s_, context)
                 if y_ is None:

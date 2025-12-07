@@ -226,6 +226,50 @@ class ConnectorMonitorViewer(SensingMonitorViewer):
         if filter('M', options, ref):                
             self._imshow_nmatrix(['M'], options=options)
         
+class RateConnectorMonitorViewer(ConnectorMonitorViewer):
+    """Viewer for RateConnectorMonitor, visualizing leaky integrate-and-fire connection dynamics."""
+
+    def __init__(self, monitor: Monitor) -> None:
+        """
+        Args:
+            monitor: RateConnectorMonitor object to visualize.
+        """
+        super().__init__(monitor)
+
+    def render(self, options: Optional[Union[dict, List[str], str]] = None) -> None:
+        """Render LI connector monitor using base connector viewer logic."""
+        super().render(options=options)
+        ref = self.get_ref()
+        Zp = self. _get('Zp')
+        if Zp is None or len(Zp)==0:
+            print('WARN: Zp not found:', self)
+            return
+        K = filter_count(['Zp', 'Zn'], options, ref)
+        if K>0:
+            n = Zp[0].shape[0]*Zp[0].shape[1]
+            height = n/4
+            #print('!n:', n, 'height:', height)
+            _,axs = self._axes(K, height=height)
+            tt = self._signal_changes()
+            k = 0
+            def _plot_Cx(ax, k):
+                self._plot_input(ax)
+                if ref is not None and ref.params is not None:
+                    ax.hlines([k], 0, len(Wp), color='r', lw=.5, linestyle= '--')
+
+            if filter('Zp', options, ref):
+                self._plot_spikes(['Zp'], tt=tt, callback=lambda ax: self._plot_input(ax), options=options, ax=axs[k])
+                k += 1
+            if filter('Zn', options, ref):
+                self._plot_spikes(['Zn'], tt=tt, callback=lambda ax: self._plot_input(ax), options=options, ax=axs[k])
+                k += 1
+
+            #self._plot_mt(['dM'], callback=lambda ax: self._plot_input(ax), options=options, ax=axs[0])
+            #self._plot_mt(['dMp'], callback=lambda ax: self._plot_input(ax), options=options, ax=axs[0])
+            #self._plot_mt(['dMn'], callback=lambda ax: self._plot_input(ax), options=options, ax=axs[0])
+            plt.show()
+        return self
+
 class LIConnectorMonitorViewer(ConnectorMonitorViewer):
     """Viewer for LIConnectorMonitor, visualizing leaky integrate-and-fire connection dynamics."""
 

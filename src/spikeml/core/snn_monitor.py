@@ -256,6 +256,39 @@ class ConnectorMonitor(SensingMonitor):
             self.dwn.append(dw)    
         return self
     
+class RateConnectorMonitor(ConnectorMonitor):
+    """Monitor for RateConnector"""
+
+    def __init__(self, ref: Optional[Any] = None) -> None:
+        """
+        Args:
+            ref: Reference to the connector being monitored.
+        """
+        super().__init__(ref=ref)
+        
+    def _sample(self, context: Optional[Any]=None) -> "LIConnectorMonitor":
+        """Sample the state of the connector"""
+        super()._sample(context)
+        self._sample_prop('Zp')
+        self._sample_prop('Zn')
+        return self
+    
+    def log(self, options: Optional[Dict[str, Any]] = None) -> None:
+        prefix = self._prefix()
+        sx = self._get_sensor_input()
+        if sx is None:
+            print('WARN: No sensor input:', self)
+            return
+        print(f'{prefix}.Zp:')
+        ref, size, n = sum_per_input(self.Zp, sx, E=self.E)
+        ref_, ranges, n_ = sum_per_input(self.Zp, sx, E=self.E, aggregate=False)
+        print_spike_counts(ref, size, n)
+        print_spike_counts(ref_, ranges, n_)
+        print(f'{prefix}.Zn:')
+        ref, size, n = sum_per_input(self.Zn, sx, E=self.E)
+        ref_, ranges, n_ = sum_per_input(self.Zn, sx, E=self.E, aggregate=False)
+        print_spike_counts(ref, size, n)
+        print_spike_counts(ref_, ranges, n_)
 
     
 class LIConnectorMonitor(ConnectorMonitor):

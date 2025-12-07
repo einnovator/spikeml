@@ -6,8 +6,8 @@ from spikeml.utils.vector import _sum, upsample
 from spikeml.core.base import Component, Module, Fan, Composite, Chain, Adapter
 from spikeml.core.params import Params, NNParams, ConnectorParams, SpikeParams, SSensorParams, SNNParams, SSNNParams
 
-from spikeml.core.snn_monitor import SSensorMonitor, LayerMonitor, SNNMonitor, SSNNMonitor, ConnectorMonitor, LIConnectorMonitor
-from spikeml.core.snn_viewer import  SSensorMonitorViewer, LayerMonitorViewer, SNNMonitorViewer, SSNNMonitorViewer, ConnectorMonitorViewer, LIConnectorMonitorViewer
+from spikeml.core.snn_monitor import SSensorMonitor, LayerMonitor, SNNMonitor, SSNNMonitor, ConnectorMonitor, RateConnectorMonitor, LIConnectorMonitor
+from spikeml.core.snn_viewer import  SSensorMonitorViewer, LayerMonitorViewer, SNNMonitorViewer, SSNNMonitorViewer, ConnectorMonitorViewer, RateConnectorMonitorViewer, LIConnectorMonitorViewer
 
 from spikeml.core.spikes import pspike, spike
 from spikeml.core.matrix import matrix_split, normalize_matrix, _mult, cmask, cmask2, matrix_init, matrix_init2
@@ -352,10 +352,10 @@ class Layer(Module):
         super().__init__(name=name, params=params, auto_sample=auto_sample, monitor=monitor, viewer=viewer, callback=callback)
         self.phase = phase
 
-    def is_propagation(context: Optional[Any]=None)
+    def is_propagation(self, context: Optional[Any]=None):
         return context is None or context.phase is None or context.phase==PHASE_PROPAGATION
 
-    def is_learning(context: Optional[Any]=None)
+    def is_learning(self, context: Optional[Any]=None):
         return context is None or context.phase is None or context.phase==PHASE_LEARNING
 
 
@@ -516,7 +516,7 @@ class LinearLayer(SimpleLayer):
         Returns:
             Tuple containing updated potentials (y) and spikes (zy).
         """
-        if is_propagation(context):
+        if self.is_propagation(context):
             s, zs = s if isinstance(s, tuple) else (s, None)
             self.s, self.zs = s, zs
 
@@ -525,7 +525,7 @@ class LinearLayer(SimpleLayer):
 
             self.y, self.zy = y, zy
 
-        if is_learning(context):
+        if self.is_learning(context):
             if hasattr(self.M, 'propagate'):       
                 self.M.propagate(zs, zy, context)
 
@@ -590,7 +590,7 @@ class SNN(SimpleLayer):
         Returns:
             Tuple containing updated potentials (y) and spikes (zy).
         """
-        if is_propagation(context):
+        if self.is_propagation(context):
             s, zs = s if isinstance(s, tuple) else (s, None)
             if zs is None:
                 zs = spike(s, self.params)
@@ -611,7 +611,7 @@ class SNN(SimpleLayer):
 
             #TODO: update k_x
 
-        if is_learning(context):
+        if self.is_learning(context):
             if hasattr(self.M, 'propagate'):       
                 self.M.propagate(zs, zy, context)
 
@@ -689,7 +689,7 @@ class SSNN(SimpleLayer):
         Returns:
             Tuple containing updated potentials (y) and spikes (zy).
         """
-        if is_propagation(context):        
+        if self.is_propagation(context):        
             s, zs = s if isinstance(s, tuple) else (s, None)
             if zs is None:
                 zs = spike(s, self.params)
@@ -704,7 +704,7 @@ class SSNN(SimpleLayer):
 
             self.b = bias_update(self.b, self.y, params=self.params)        
     
-        if is_learning(context):                
+        if self.is_learning(context):                
             if hasattr(self.M, 'propagate'):
                 self.M.propagate(zs, zy, context)
             
@@ -761,7 +761,7 @@ class SSensor(Layer):
         self.monitor=monitor
                 
     def propagate(self, s, context: Optional[Any]=None):
-        if is_propagation(context):
+        if self.is_propagation(context):
             s,sx = (s[0],s[1]) if isinstance(s, tuple) else (s,s) 
             R = self.s.shape[0] // s.shape[0]                    
             self.R = R
@@ -802,7 +802,7 @@ class DSSNN(SSNN):
         self.viewer=viewer
 
     def propagate(self, s, context: Optional[Any]=None):
-        if is_propagation(context):        
+        if self.is_propagation(context):        
             s, zs = s if isinstance(s, tuple) else (s, None)
             if zs is None:
                 zs = spike(s, self.params)
@@ -816,7 +816,7 @@ class DSSNN(SSNN):
             
             self.b = bias_update(self.b, self.y, params=params)        
 
-        if is_learning(context):        
+        if self.is_learning(context):        
             self.M.propagate(zs, zy, context)
             self.Mx.propagate(zy, zy, context)
                 
@@ -828,9 +828,9 @@ class Connector(Component):
     Neural Connections base class.
     """
 
-    def __init__(self, phase: Optional[Any] = None,
+    def __init__(self,
                  params=None, auto_sample=True, monitor=None, viewer=None, name=None, callback=None):
-        super().__init__(phase=phase, name=name, params=params, auto_sample=auto_sample, monitor=monitor, viewer=viewer, callback=callback)
+        super().__init__(name=name, params=params, auto_sample=auto_sample, monitor=monitor, viewer=viewer, callback=callback)
 
     def step(self, s, y, context: Optional[Any]=None):
         y = self.propagate(s, y, context)
@@ -847,9 +847,9 @@ class LinearConnector(Connector):
     Linear Connector. Connection weight are static. Sub-class implement specific update rules and dynamics.
     """
 
-    def __init__(self, M=None, size=None, phase: Optional[Any] = None,
+    def __init__(self, M=None, size=None,
         params=None, monitor=True, viewer=None, name=None, callback=None):
-        super().__init__(phase=phase, params=params, name=name, callback=callback)
+        super().__init__(params=params, name=name, callback=callback)
         if params is None:
             params = ConnectorParams()
         self.params = params
@@ -920,27 +920,37 @@ class RateConnector(LinearConnector):
     Linear Connector with rate-based update rules.
     """
 
-    def __init__(self, M=None, size=None, phase: Optional[Any] = None,
+    def __init__(self, M=None, size=None,
         params=None, monitor=True, viewer=True, name=None, callback=None):
-        super().__init__(phase=phase, M=M,  size=size, params=params, monitor=monitor, viewer=viewer, name=name, callback=callback)
+        super().__init__(M=M, size=size, params=params, monitor=monitor, viewer=viewer, name=name, callback=callback)
         if monitor==True:
-            monitor = ConnectorMonitor(ref=self)
+            monitor = RateConnectorMonitor(ref=self)
         if viewer==True:
-            viewer = ConnectorMonitorViewer(monitor)
+            viewer = RateConnectorMonitorViewer(monitor)
         self.monitor= monitor
         self.viewer= viewer
-
-    
-    def propagate(self, s, y, context: Optional[Any]=None):
+        self._M = self.M 
+        self.Zp = self.Zn = None
+        self.dM = self.dMp = self.dMn = None
+        
+    def propagate(self, zs, zy, context: Optional[Any]=None):
         self._M = self.M
-        #TODO: update M
+        self.Zp = np.outer(zy, zs)
+        self.Zn = np.outer(zy, 1-zs)
+        self.dMp = (1/self.params.t_p)*(self.Zp) if self.params.t_p>0 else None #LTP
+        self.dMn = -(1/self.params.t_d)*(self.Zn) if self.params.t_d>0 else None #LTD
+        self.dM = _sum(self.dMp, self.dMn)
+        if self.dM is not None:
+            self.M += self.dM
+        if self.params.cmin is not None and self.params.cmax is not None:
+            self.M = np.clip(self.M, self.params.cmin, self.params.cmax)
+        if (self.params.c_in is not None and self.params.c_in>0) or (self.params.c_out is not None and self.params.c_out>0):
+            self.M = normalize_matrix(self.M, c_in=self.params.c_in, c_out=self.params.c_out, strict=False)
+
         return self.M
 
     def log(self, options: Optional[Dict[str, Any]] = None) -> None:
-        def _m(M):
-            return (M[0]+M[1],M[0],M[1]) if type(M)==tuple else M
-
-        xdisplay(Markup('_M', self._M), Markup('Cp', self.Cp), Markup('Cn', self.Cn),  Markup('Zp', self.Zp), Markup('Zn', self.Zn), Markup('Wp', self.Wp), Markup('Wn', self.Wn), Markup('dM', self.dM), Markup('dMp', self.dMp), Markup('dMn', self.dMn), Markup('M', self.M))
+        xdisplay(Markup('_M', self._M), Markup('Zp', self.Zp), Markup('Zn', self.Zn), Markup('dM', self.dM), Markup('dMp', self.dMp), Markup('dMn', self.dMn), Markup('M', self.M))
 
 
 class LIConnector(LinearConnector):
@@ -949,9 +959,8 @@ class LIConnector(LinearConnector):
     """
 
     def __init__(self, M=None, size=None,
-                phase: Optional[Any] = None,
                 params=None, monitor=True, viewer=True, name=None, callback=None):
-        super().__init__(phase=phase, M=M, size=size, params=params, name=name, callback=callback)
+        super().__init__(M=M, size=size, params=params, name=name, callback=callback)
         if self.M is not None:
             self.Cp, self.Cn = np.zeros(self.M.shape), np.zeros(self.M.shape)
             self._Cp, self._Cn = np.zeros(self.M.shape), np.zeros(self.M.shape)
@@ -1080,9 +1089,8 @@ class LIConnector(LinearConnector):
                 
 class LIConnector2(LinearConnector):
     def __init__(self, Mp=None, Mn=None, 
-        phase: Optional[Any] = None,
         params=None, monitor=True, viewer=True, name=None, callback=None):
-        super().__init__(phase=phase, params=params, name=name, callback=callback)
+        super().__init__(params=params, name=name, callback=callback)
         self.M = M
 
         if not type(M)==tuple:

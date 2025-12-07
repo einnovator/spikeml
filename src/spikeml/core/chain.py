@@ -5,11 +5,11 @@ from typing import Optional, Tuple, Union, Any, Dict
 from spikeml.utils.vector import _sum, upsample
 from spikeml.core.base import Component, Module, Fan, Composite, Chain
 from spikeml.core.params import SSensorParams, Params, NNParams, ConnectorParams, SpikeParams, SNNParams, SSNNParams
-from spikeml.core.snn import SSensor, SNN, SSNN, Connector, LIConnector
+from spikeml.core.snn import SSensor, SNN, SSNN, Connector, LIConnector, RateConnector
 
 from spikeml.core.matrix import matrix_init, matrix_init2
 
-def make_chain(constructor, input_contructor=None, output_contructor=None, size=None, k=1, name='nn', input_params=None, params=None, auto_sample=True, monitor=True, viewer=True):
+def make_chain(constructor, input_contructor=None, output_contructor=None, size=None, k=1, body=None, name='nn', input_params=None, params=None, auto_sample=True, monitor=True, viewer=True):
     nns = []
     if params is None:
         params = SSNNParams()
@@ -40,8 +40,10 @@ def make_chain(constructor, input_contructor=None, output_contructor=None, size=
         nnk = constructor(name_, size_, iparams)
         _size = size_[0] if isinstance(size_, tuple) else size_
         nns.append(nnk)
-    nn = Chain(nns, name=name) 
-    return nn
+    chain = Chain(nns, name=name) 
+    if body is not None:
+        chain.append(body)
+    return chain
 
 
 def chain_validate(nn):
@@ -55,7 +57,7 @@ def chain_validate(nn):
             
         _size = ref.shape[0]
 
-def make_ssnn_chain(k=1, size=None, input_contructor=None, output_contructor=None, auto_sensor=True, name='nn', params=None, sensor_params=None, auto_sample=True, monitor=True, viewer=True):
+def make_ssnn_chain(k=1, size=None, input_contructor=None, output_contructor=None, auto_sensor=True,  body=None, name='nn', params=None, sensor_params=None, auto_sample=True, monitor=True, viewer=True):
     def _layer(name, size, params):
         M = LIConnector(size=size, name=name, params=params, monitor=monitor, viewer=viewer)
         return SSNN(name=name, M=M, params=params, auto_sample=auto_sample, monitor=monitor, viewer=viewer)
@@ -65,10 +67,23 @@ def make_ssnn_chain(k=1, size=None, input_contructor=None, output_contructor=Non
     if input_contructor is None and auto_sensor:
         input_contructor = _sensor
         
-    chain = make_chain(_layer, input_contructor, k=k, size=size, name=name, params=params, auto_sample=auto_sample, monitor=monitor, viewer=viewer)
+    chain = make_chain(_layer, input_contructor, k=k, size=size, body=body, name=name, params=params, auto_sample=auto_sample, monitor=monitor, viewer=viewer)
     return chain
 
-def make_snn_chain(k=1, size=None, name='nn', params=None, auto_sample=True, monitor=True, viewer=True):
+def make_ssnn_rate_chain(k=1, size=None, input_contructor=None, output_contructor=None, auto_sensor=True, body=None, name='nn', params=None, sensor_params=None, auto_sample=True, monitor=True, viewer=True):
+    def _layer(name, size, params):
+        M = RateConnector(size=size, name=name, params=params, monitor=monitor, viewer=viewer)
+        return SSNN(name=name, M=M, params=params, auto_sample=auto_sample, monitor=monitor, viewer=viewer)
+
+    def _sensor(name, size, params):
+        return SSensor(name=name, n=size, params=sensor_params, auto_sample=auto_sample, monitor=monitor, viewer=viewer)
+    if input_contructor is None and auto_sensor:
+        input_contructor = _sensor
+        
+    chain = make_chain(_layer, input_contructor, k=k, size=size, body=body, name=name, params=params, auto_sample=auto_sample, monitor=monitor, viewer=viewer)
+    return chain
+
+def make_snn_chain(k=1, size=None, body=None, name='nn', params=None, auto_sample=True, monitor=True, viewer=True):
     def _layer(name, size, params):
         M = LIConnector(size=size, name=name, params=params, monitor=monitor, viewer=viewer)
         return SNN(M=M, name=name, params=params, auto_sample=auto_sample, monitor=monitor, viewer=viewer)
@@ -76,18 +91,6 @@ def make_snn_chain(k=1, size=None, name='nn', params=None, auto_sample=True, mon
     def _sensor(name, size, params):
         return SSensor(name=name, n=size, params=sensor_params, auto_sample=auto_sample, monitor=monitor, viewer=viewer)
 
-    return make_chain(_layer, k=k, size=size, name=name, params=params, auto_sample=auto_sample, monitor=monitor, viewer=viewer)
+    return make_chain(_layer, k=k, size=size, body=body, name=name, params=params, auto_sample=auto_sample, monitor=monitor, viewer=viewer)
 
-
-def make_ssnn_echain(k=1, size=None, name='nn', body=None, params=None, sensor_params=None, auto_sample=True, monitor=True, viewer=True):
-    chain = make_ssnn_chain(k=k, size=size, name=name, params=params, sensor_params=sensor_params, auto_sample=auto_sample, monitor=monitor, viewer=viewer)
-    if body is not None:
-        chain.append(body)
-    return chain
-
-def make_snn_echain(k=1, size=None, name='nn', params=None, auto_sample=True, monitor=True, viewer=True):
-    chain = make_snn_chain(k=k, size=size, name=name, params=params, sensor_params=sensor_params, auto_sample=auto_sample, monitor=monitor, viewer=viewer)
-    if body is not None:
-        chain.append(body)
-    return chain
 
