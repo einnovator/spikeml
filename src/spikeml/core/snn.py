@@ -1,6 +1,6 @@
 
 import numpy as np
-from typing import Optional, Tuple, Union, Any, Dict
+
 
 from spikeml.utils.vector import _sum, upsample
 from spikeml.core.base import Component, Module, Fan, Composite, Chain, Adapter
