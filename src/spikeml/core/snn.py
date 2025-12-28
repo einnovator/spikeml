@@ -1,5 +1,7 @@
 
 import numpy as np
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+
 
 
 from spikeml.utils.vector import _sum, upsample
@@ -530,7 +532,7 @@ class LinearLayer(SimpleLayer):
                 self.M.propagate(zs, zy, context)
 
         
-        return self.y,self.zy
+        return self.y,self.zy if self.zy is None else self.y 
 
     def log(self, options: Optional[Dict[str, Any]] = None) -> None:
         print(f'{self.name}: s={self.s} | zs={self.zs}-> y={self.y} | zy={self.zy}') 
