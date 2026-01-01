@@ -213,3 +213,34 @@ def normalize_last(x):
     k[k == 0] = 1
     x = x / k
     return x
+
+
+def l2_normalize(x, axis=-1, eps=1e-12):
+    norm = np.linalg.norm(x, ord=2, axis=axis, keepdims=True)
+    return x / (norm + eps)
+
+def normalize(a, norm=1):
+    if norm==1:
+        n = np.abs(a).sum()
+    elif norm==2:
+        n = la.norm(a, axis=(-2,-1))
+    else:
+        n = 0
+
+    return a/n if n!=0 else a
+
+
+def normalize_all(a, norm=1):
+    if norm==1:
+        a_ = a.reshape(a.shape[0], -1)
+        s_ = np.abs(a_).sum(-1)
+        print(s_)
+        s_[s_ == 0] = 1
+        a_ = a_/s_[:,None]
+        return a_.reshape(a.shape)
+    elif norm==2:
+        n = np.linalg.norm(a, axis=(-2,-1))
+        a = a / n[:,None,None]
+        return a
+    else:
+        return a 
