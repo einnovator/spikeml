@@ -560,13 +560,19 @@ class Chain(Composite):
         """
         self.shape = None
         if isinstance(self.refs, list) and len(self.refs)>0:
-            if self.refs[0].shape is not None:
-                if len(self.refs)>1:
-                    n = self.refs[0].shape[-1]
-                    m = self.refs[-1].shape[0]
-                    self.shape = (m, n)  
-                else:
-                    self.shape = self.refs[0].shape
+            n, m = None, None
+            for i in range(len(self.refs)):
+                if n is None:
+                    ref = self.refs[i]
+                    if hasattr(ref, 'shape') and ref.shape is not None:                    
+                        n = ref.shape[-1]
+                if m is None:
+                    ref = self.refs[len(self.refs) - i - 1]
+                    if hasattr(ref, 'shape') and ref.shape is not None:                    
+                        m = ref.shape[-1]
+                if n is not None and m is not None:
+                    break            
+            self.shape = (m, n)  
         return self.shape
             
     def step(self, s: Any, context: Optional[Any]=None) -> Any:

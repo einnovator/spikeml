@@ -81,7 +81,7 @@ class SensingMonitor(Monitor):
         self.E = E
 
     def _get_sensor_input(self) -> Optional[np.ndarray]:
-        from spikeml.core.snn import SSensor
+        from spikeml.core.sensor import SSensor
         
         """Retrieve sensor input 'sx' from connected SSensor layer."""
         _parent = getattr(self.ref, '_parent', None)
@@ -131,13 +131,17 @@ class LayerMonitor(SensingMonitor):
     def compute(self) -> None:
         """Compute aggregated values from the layer (e.g., total spikes, outputs)."""
         ref = self.ref
-        ref.u = ref.y.sum()
-        ref.us = ref.s.sum()        
+        if self.ref.batch:
+            ref.u = ref.y.sum(axis=tuple(range(1, ref.y.ndim)))
+            ref.us = ref.s.sum(axis=tuple(range(1, ref.s.ndim)))        
+        else:
+            ref.u = ref.y.sum()
+            ref.us = ref.s.sum()        
 
         
     def log(self, options: Optional[Dict[str, Any]] = None) -> None:
         prefix = self._prefix()
-        print(f'{prefix}.zy:')
+        #print(f'{prefix}.zy:')
         super()._log(options)
 
 class SNNMonitor(SensingMonitor):
@@ -164,8 +168,12 @@ class SNNMonitor(SensingMonitor):
     def compute(self) -> None:
         """Compute aggregated values from the layer (e.g., total spikes, outputs)."""
         ref = self.ref
-        ref.u = ref.y.sum()
-        ref.us = ref.s.sum()        
+        if self.ref.batch:
+            ref.u = ref.y.sum(axis=tuple(range(1, ref.y.ndim)))
+            ref.us = ref.s.sum(axis=tuple(range(1, ref.us.ndim)))        
+        else:
+            ref.u = ref.y.sum()
+            ref.us = ref.s.sum()        
         #ref.zym = np.max(ref.zy, axis=1)
 
         

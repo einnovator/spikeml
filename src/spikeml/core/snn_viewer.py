@@ -26,7 +26,7 @@ class SensingMonitorViewer(MonitorViewer):
         self.E = E
   
     def _get_sensor_input(self) -> Optional[np.ndarray]:
-        from spikeml.core.snn import SSensor
+        from spikeml.core.sensor import SSensor
         sx = self._get('sx')
         if sx is None:
             sx = self._get('s')

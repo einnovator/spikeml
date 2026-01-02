@@ -49,7 +49,7 @@ class Monitor:
     def _sample(self, context: Optional[Any]=None) -> None:
         pass #Abstract
     
-    def _sample_value(self, key: str, value: Any) -> "Monitor":
+    def _sample_value(self, key: str, value: Any, batch: bool=None) -> "Monitor":
         """
         Append a value to the monitored list corresponding to `key`.
 
@@ -71,7 +71,15 @@ class Monitor:
         if value is not None:
             if not hasattr(self, key) or getattr(self, key) is None:
                 setattr(self, key, self._make_empty())
-            getattr(self, key).append(value)
+            container = getattr(self, key)
+            if batch is None and hasattr(self.ref, 'batch'):
+                batch = self.ref.batch
+            if batch:
+                if isinstance(value, np.ndarray):
+                    for i in range(value.shape[0]):
+                        container.append(value[i])                
+                    return self
+            container.append(value)
         return self
 
     def _make_empty(self):
@@ -114,7 +122,7 @@ class Monitor:
         else:
             return None
         
-    def _sample_prop(self, key: str, prop: Optional[str] = None, ref: Optional[Any] = None, copy: bool = True) -> None:
+    def _sample_prop(self, key: str, prop: Optional[str] = None, ref: Optional[Any] = None, copy: bool = True, batch: bool=None) -> None:
         """
         Sample a property from the reference object and store it in the monitor.
 
@@ -133,7 +141,7 @@ class Monitor:
             ref = self.ref
         if prop is None:
             prop = key
-        self._sample_value(key, self._get(prop, ref=ref, copy=copy))
+        self._sample_value(key, self._get(prop, ref=ref, copy=copy), batch=batch)
         
     def _prefix(self, prefix: Optional[str] = None) -> str:
         """

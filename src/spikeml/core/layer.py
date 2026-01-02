@@ -223,29 +223,37 @@ class LinearLayer(SimpleLayer):
             s, zs = s if isinstance(s, tuple) else (s, None)
             self.s, self.zs = s, zs
 
-            self.y = self._propagate(s, context)
+            s = self._reshape_input(s)
+            self.y = self._propagate(s)
             if zs is not None:
-                self.zy = self._propagate(zs, context)
+                zs = self._reshape_input(zs)
+                self.zy = self._propagate(zs)
 
 
         if self.is_learning(context):
             if hasattr(self.M, 'propagate'):    
-                zs, zy = self.zs,self.zy if self.zs is not None else (self.s, self.y)   
-                self.M.propagate(self.zs, self.zy, context)
+                zs, zy = (self.zs,self.zy) if self.zs is not None else (self.s, self.y)   
+                zs = self._reshape_input(zs)
+                self.M.propagate(zs, zy, context)
 
         
         return self.y,self.zy if self.zy is None else self.y 
 
 
-    def _propagate(x, context: Optional[Any]=None):
+    def _propagate(self, x):
         if not self.batch:
-            x_ = x.flatten()
-            _y = self.M @ x_
+            _y = self.M @ x
         else:
-            x_ = x.reshape(x.shape[0], -1)
-            _y = x_ @ self.M.T
-        y = np.clip(_y, self.params.xmin, self.params.xmax)
+            _y = x @ self.M.T
+        y = np.clip(_y, self.params.vmin, self.params.vmax)
         return y
+
+    def _reshape_input(self, x):
+        if not self.batch:
+            x = x.flatten()
+        else:
+            x = x.reshape(x.shape[0], -1)
+        return x
 
 
     def log(self, options: Optional[Dict[str, Any]] = None) -> None:
@@ -267,12 +275,12 @@ class NormalizeLayer(Layer):
                 scale: Optional[float] = 1,
                 name: Optional[str] = None,
                  callback: Optional[Any] = None) -> None:
-        super().__init__(phase=phase, name=name)
-        self.norm = norma
+        super().__init__(name=name)
+        self.norm = norm
         self.scale = scale
                 
     def propagate(self, s, context: Optional[Any]=None):
-        s_ = normalize_all(s)
+        s_ = normalize_all(s, norm=self.norm)
         if self.scale is not None and self.scale!=1:
             s_ = s_ * self.scale
         return s_
@@ -286,7 +294,8 @@ class ThresholdLayer(Layer):
     def __init__(self,
                 b: Optional[Any] = 0,
                  name: Optional[str] = None) -> None:
-        super().__init__(phase=phase, name=name)
+        super().__init__(name=name)
+        self.b = b
                 
     def propagate(self, s, context: Optional[Any]=None):
         if not isinstance(s, tuple):
@@ -298,7 +307,7 @@ class ThresholdLayer(Layer):
             sx = self._propagate(sx)
             return s,sx 
     
-    def _propagate(self, s, context: Optional[Any]=None):
+    def _propagate(self, s):
         if self.b is not None:
             s[s < self.b] = self.b
             #zs = (s > self.b).astype(np.int8)
@@ -316,6 +325,7 @@ class BinaryThresholdLayer(Layer):
                 b: Optional[Any] = 0,
                  name: Optional[str] = None) -> None:
         super().__init__(phase=phase, name=name)
+        self.b = b
                 
     def propagate(self, s, context: Optional[Any]=None):
         if not isinstance(s, tuple):

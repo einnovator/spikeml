@@ -99,6 +99,10 @@ class LinearConnector(Connector):
             return np.array_equal(self.M, other.M)
         return False
     
+    @property
+    def T(self):
+        return self.M.T        
+
     def propagate(self, s, y, context: Optional[Any]=None):
         self._M = self.M
         return self.M
@@ -134,14 +138,17 @@ class RateConnector(LinearConnector):
             self.Zn = np.outer(zy, 1-zs)
             self.dMp = (1/self.params.t_p)*(self.Zp) if self.params.t_p>0 else None #LTP
             self.dMn = -(1/self.params.t_d)*(self.Zn) if self.params.t_d>0 else None #LTD
-        else:            
-            Zp = zy[:, :, None] * zs[:, None, :]
-            Zn = zy[:, :, None] * (1 - zs[:, None, :])
-            dMp = (1/twp)*Zp 
-            dMn = (1/twn)*Zn 
-            self.dMp = np.sum(dMp, 0) if self.params.t_p>0 else None #LTP
-            self.dMn = -np.sum(dMn, 0) if self.params.t_d>0 else None #LTD
-
+        else:        
+            self.dMp = self.dMn = None 
+            if self.params.t_p>0:
+                Zp = zy[:, :, None] * zs[:, None, :]
+                dMp = (1/self.params.t_p)*Zp 
+                self.dMp = np.sum(dMp, 0)
+            if self.params.t_d>0:
+                Zn = zy[:, :, None] * (1 - zs[:, None, :])
+                dMn = (1/self.params.t_d)*Zn 
+                self.dMn = -np.sum(dMn, 0)
+                
         self.dM = _sum(self.dMp, self.dMn)
         if self.dM is not None:
             self.M += self.dM
@@ -161,9 +168,8 @@ class LIConnector(LinearConnector):
     Leaky-integrate LTP/LTD connections.
     """
 
-    def __init__(self, M=None, size=None,
-                batch: Optional[bool] = True,
-                params=None,  batch=batch, monitor=True, viewer=True, name=None, callback=None):
+    def __init__(self, M=None, size=None, params=None, batch: Optional[bool] = True,
+                monitor=True, viewer=True, name=None, callback=None):
         super().__init__(M=M, size=size, params=params,  batch=batch, name=name, callback=callback)
         if self.M is not None:
             self.Cp, self.Cn = np.zeros(self.M.shape), np.zeros(self.M.shape)

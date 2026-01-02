@@ -9,7 +9,7 @@ from spikeml.core.env import Source
 from spikeml.core.snn_monitor import SSensorMonitor, LayerMonitor, SNNMonitor, SSNNMonitor, ConnectorMonitor, LIConnectorMonitor
 from spikeml.core.snn_monitor import  ErrorMonitor
 from spikeml.core.snn_viewer import  ErrorMonitorViewer
-from spikeml.core.snn import PHASE_PROPAGATION, PHASE_LEARNING
+from spikeml.core.layer import PHASE_PROPAGATION, PHASE_LEARNING
 
 PHASES2 = [PHASE_PROPAGATION, PHASE_LEARNING]
 
