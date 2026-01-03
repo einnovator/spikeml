@@ -225,6 +225,7 @@ class LinearLayer(SimpleLayer):
 
             s = self._reshape_input(s)
             self.y = self._propagate(s)
+            
             if zs is not None:
                 zs = self._reshape_input(zs)
                 self.zy = self._propagate(zs)

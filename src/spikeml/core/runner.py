@@ -28,6 +28,21 @@ class Context():
     def __str__(self) -> str:
         """Return a string representation of the context."""
         return f'{type(self).__name__}({vars(self)})'     
+   
+
+class Runner():
+    """
+    Base class for run drivers.
+
+    Attributes:
+    """
+    def __init__(self, callback: Optional[Any] = None):
+        #super().__init__()
+        self.callback = callback
+
+
+    def run():
+        pass
     
 def run(
     nn: Any,
@@ -451,82 +466,117 @@ def nrun_with(
     
     return Results(results)
 
-def run_with_data(
-    ref: Any,
-    loader: Any,
-    epochs: Optional[int] = 1,
-    report: bool = True,
-    plot: bool = True,
-    log_step: int = 1,
-    log_epoch: int = 1,
-    callback: Optional[Callable[[Context], bool]] = None,
-    options: Optional[Dict[str, Any]] = None
-) -> Dict[str, Any]:
-    """Run a single simulation over time.
-
-    Args:
-        ref: Root simulation object with methods `__call__`, `sample`, `log`, and `render`.
-        ss (np.ndarray): Input stimulus array (shape: [T, N] or [N]).
-        T (int, optional): Number of time steps. Defaults to inferred from `ss` if not given.
-        params: Simulation or model parameters (must define attributes `vmin`, `vmax`, `e_err`, `g`).
-        feedback (bool, optional): Whether to enable error feedback loop. Defaults to True.
-        report (bool, optional): Whether to output run report. Defaults to True.
-        plot (bool, optional): Whether to render plots after the run. Defaults to True.
-        callback (Callable[[Context], bool], optional): Function called at each timestep.
-            Return False to stop simulation early.
-        log_step (int, optional): Frequency of log output (in steps). Defaults to 1.
-        options (dict, optional): Extra configuration flags for logging and rendering.
-
-    Returns:
-        dict: A dictionary containing simulation results:
-            - `'nn'`: Final neural network state
-            - `'err_monitor'`: Error monitor instance (if feedback enabled)
-            - `'err_viewer'`: Error viewer instance (if feedback enabled)
-            - `'t'`: Final timestep index
+class DataRunner(Runner):
     """
-        
-    context = Context()
+    Runner for a DataLoader/Dataset.
     
-    for epoch in range(epochs):
-        context.epoch = epoch
-        context.epochs = epoch
+    Attributes:
+    """
+    def __init__(self, ref: Any,
+        loader: Any,
+        epochs: Optional[int] = 1,
+        report: bool = True,
+        plot: bool = True,
+        log_step: int = 1,
+        log_epoch: int = 1,
+        callback: Optional[Callable[[Context], bool]] = None,
+        options: Optional[Dict[str, Any]] = None):
+        super().__init__()
+        self.ref = ref
+        self.loader = loader
+        self.epochs = epochs
+        self.report = report
+        self.plot = plot
+        self.log_step = log_step
+        self.log_epoch = log_epoch
+        self.callback = callback
+        self.options = options
+        self.result = None
 
-        debug_ = log_epoch is not None and log_epoch>=0 and (epoch==0 or (log_epoch>0 and epoch%log_epoch==0))
+    def run(self, options: Optional[Dict[str, Any]] = None):
+        if options is None:
+            options = self.options
+        self.result = self._run(ref=self.ref, loader=self.loader, epochs=self.epochs, report=self.report, plot=self.plot, log_step=self.log_step, log_epoch=self.log_epoch,
+                  callback=self.callback, options=options)
+        return self.result
+            
+    def _run(self, 
+        ref: Any,
+        loader: Any,
+        epochs: Optional[int] = 1,
+        report: bool = True,
+        plot: bool = True,
+        log_step: int = 1,
+        log_epoch: int = 1,
+        callback: Optional[Callable[[Context], bool]] = None,
+        options: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Run a single simulation over time.
 
-        if options is None or options.get('log.epoch', True):
-            print(f'epoch= {epoch}:')
+        Args:
+            ref: Root simulation object with methods `__call__`, `sample`, `log`, and `render`.
+            ss (np.ndarray): Input stimulus array (shape: [T, N] or [N]).
+            T (int, optional): Number of time steps. Defaults to inferred from `ss` if not given.
+            params: Simulation or model parameters (must define attributes `vmin`, `vmax`, `e_err`, `g`).
+            feedback (bool, optional): Whether to enable error feedback loop. Defaults to True.
+            report (bool, optional): Whether to output run report. Defaults to True.
+            plot (bool, optional): Whether to render plots after the run. Defaults to True.
+            callback (Callable[[Context], bool], optional): Function called at each timestep.
+                Return False to stop simulation early.
+            log_step (int, optional): Frequency of log output (in steps). Defaults to 1.
+            options (dict, optional): Extra configuration flags for logging and rendering.
+
+        Returns:
+            dict: A dictionary containing simulation results:
+                - `'nn'`: Final neural network state
+                - `'err_monitor'`: Error monitor instance (if feedback enabled)
+                - `'err_viewer'`: Error viewer instance (if feedback enabled)
+                - `'t'`: Final timestep index
+        """
+            
+        context = Context()
         
-        for idx, x in enumerate(loader): 
-            context.idx = idx
-                   
-            debug_ = log_step is not None and log_step>=0 and (idx==0 or (log_step>0 and idx%log_step==0))
-            
-            if debug_:
-                if options is None or options.get('log.time', True):
-                    print(f'idx= {idx}:')
-                
-            
-            out = ref(x, context)
-            
-            ref.sample(context)
+        for epoch in range(epochs):
+            context.epoch = epoch
+            context.epochs = epoch
 
-            if callback is not None:
-                if callback(context)==False:
-                    done = True
+            debug_ = log_epoch is not None and log_epoch>=0 and (epoch==0 or (log_epoch>0 and epoch%log_epoch==0))
 
-            if debug_:
-                if options is None or options.get('log.modules', True):
-                    ref.log(options)
-                    print('-'*10)
+            if options is None or options.get('log.epoch', True):
+                if self.epochs>1:
+                    print(f'epoch = {epoch}:')
+            
+            for idx, x in enumerate(loader): 
+                context.idx = idx
                     
-    if report:
-        ref.log_monitor(options)
+                debug_ = log_step is not None and log_step>=0 and (idx==0 or (log_step>0 and idx%log_step==0))
+                
+                if debug_:
+                    if options is None or options.get('log.time', True):
+                        print(f'step = {idx}:')
+                    
+                
+                out = ref(x, context)
+                
+                ref.sample(context)
 
-    if plot:
-        ref.render(options)
+                if callback is not None:
+                    if callback(context)==False:
+                        done = True
 
-    result = { 'ref': ref, 'context': context }
-    return result
+                if debug_:
+                    if options is None or options.get('log.modules', True):
+                        ref.log(options)
+                        print('-'*10)
+                        
+        if report:
+            ref.log_monitor(options)
+
+        if plot:
+            ref.render(options)
+
+        result = { 'ref': ref, 'context': context }
+        return result
 
 
 
