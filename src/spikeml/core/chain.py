@@ -4,7 +4,7 @@ from typing import Optional, Tuple, Union, Any, Dict
 
 from spikeml.utils.vector import _sum, upsample
 from spikeml.core.base import Component, Module, Fan, Composite, Chain
-from spikeml.core.params import SSensorParams, Params, NNParams, ConnectorParams, SpikeParams, SNNParams, SSNNParams
+from spikeml.core.params import SSensorParams, Params, LayerParams, ConnectorParams, SpikeParams, SNNParams, SSNNParams
 from spikeml.core.sensor import SSensor
 from spikeml.core.snn import SNN, SSNN
 from spikeml.core.connector import Connector, LIConnector, RateConnector

@@ -6,7 +6,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 from spikeml.utils.vector import _sum, upsample
 from spikeml.core.base import Component, Module, Fan, Composite, Chain, Adapter
-from spikeml.core.params import Params, NNParams, ConnectorParams, SpikeParams, SSensorParams, SNNParams, SSNNParams
+from spikeml.core.params import Params, BiasParams, LayerParams, ConnectorParams, SpikeParams, SSensorParams, SNNParams, SSNNParams
 
 from spikeml.core.snn_monitor import LayerMonitor, SNNMonitor, SSNNMonitor, ConnectorMonitor, RateConnectorMonitor, LIConnectorMonitor
 from spikeml.core.snn_viewer import  LayerMonitorViewer, SNNMonitorViewer, SSNNMonitorViewer, ConnectorMonitorViewer, RateConnectorMonitorViewer, LIConnectorMonitorViewer
@@ -16,7 +16,7 @@ from spikeml.core.matrix import matrix_split, normalize_matrix, _mult, cmask, cm
 from spikeml.utils.nb_util import xdisplay, Markup
 from spikeml.core.signal import Source
 
-from spikeml.core.layer import SimpleLayer, LinearLayer
+from spikeml.core.layer import SimpleLayer, LinearLayer, bias_update
 from spikeml.core.connector import Connector, LinearConnector, RateConnector, LIConnector
 
 def __cov_update(M, s=None, y=None, zc_p=None, zc_n=None, params=None, debug=False):
@@ -257,10 +257,10 @@ def ssnn_apply_update(
     return y, zy, zs, M, Cp, Cn, dM, dMp, dMn, Zp, Zn, Wp, Wn
 
 
-def bias_update(
+def __bias_update(
     b: np.ndarray,
     y: np.ndarray,
-    params: 'SSNNParams',
+    params: 'BiasParams',
     debug: bool = False
 ) -> np.ndarray:
     """
@@ -272,7 +272,7 @@ def bias_update(
         Current bias vector.
     y : np.ndarray
         Output of the layer.
-    params : SSNNParams
+    params : BiasParams
         Parameters containing adaptive threshold settings.
     debug : bool
         If True, prints debug info.
@@ -293,42 +293,6 @@ def bias_update(
         print(f'b: {b} -> {b_} ({params.t_b}) ; y_={y_}  y0_={y0_}')
     return b_
 
-def bias_update2(
-    b: np.ndarray,
-    y: np.ndarray,
-    params: 'SSNNParams',
-    debug: bool = False
-) -> np.ndarray:
-    """
-    Update the adaptive bias for a stochastic spike layer.
-
-    Parameters
-    ----------
-    b : np.ndarray
-        Current bias vector.
-    y : np.ndarray
-        Output of the layer.
-    params : SSNNParams
-        Parameters containing adaptive threshold settings.
-    debug : bool
-        If True, prints debug info.
-
-    Returns
-    -------
-    np.ndarray
-        Updated bias vector.
-    """
-    if params.t_b<=0:
-        return b
-    y_ = ((y-params.vmin)/(params.vmax-params.vmin))**params.e_b
-    y0_ = ((params.vmax-y)/(params.vmax-params.vmin))**params.e_b*2
-
-    db = y_ * (1/params.t_b) - y0_ * (1/(params.t_b*2))
-    b_ = b + db
-    b_[b_<0] = 0
-    if debug:
-        print(f'b: {b} -> {b_} ({params.t_b}) ; y_={y_}  y0_={y0_}')
-    return b_
             
 class SNN(SimpleLayer):
     """

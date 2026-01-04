@@ -24,6 +24,7 @@ E_Z = 2    # Spike probability exponent
 # Adaptive threshold
 E_B = 2    # Exponent for adaptive threshold
 T_B = 20   # Characteristic time for adaptive threshold
+T_BN = 30   # Characteristic time for adaptive threshold
 
 # Long-Term Potentiation/Depression (LTP/LTD)
 CMAX = 2   # Maximum synaptic connection weight
@@ -77,7 +78,7 @@ class Params(BaseModel):
 # =============================================================================
 
 
-class NNParams(Params):
+class LayerParams(Params):
     """
     Base parameters for neural network units.
 
@@ -153,7 +154,7 @@ class ConnectorParams(Params):
     sd: float = Field(default=.1, ge=0)
     size: Any = Field(default=None)
 
-class SpikeParams(NNParams):
+class SpikeParams(LayerParams):
     """
     Parameters controlling stochastic spike generation.
 
@@ -188,7 +189,21 @@ class BiasParams(Params):
         Exponent controlling adaptive threshold scaling.
     """    
     t_b: float = Field(default=T_B, ge=0)
+    t_bn: float = Field(default=T_BN, ge=0)
     e_b: float = Field(default=E_B, ge=0)
+
+class NNParams(LayerParams, BiasParams):
+    """
+    Parameters for LinearLayer.
+
+    Combines LayerParams and BiasParams.
+    
+    Attributes
+    ----------
+    """    
+    
+    pass
+
 
 class SSensorParams(SpikeParams, BiasParams):
     """
@@ -205,7 +220,7 @@ class SSensorParams(SpikeParams, BiasParams):
     
     pass
 
-class SNNParams(SpikeParams, BiasParams, ConnectorParams): #TODO: -> NNParams
+class SNNParams(SpikeParams, BiasParams, ConnectorParams): #TODO: -> LayerParams
     """
     Parameters for standard leaky-integrate-fire Spiking Neural Network (SNN) models.
 

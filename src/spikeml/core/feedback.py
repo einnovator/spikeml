@@ -3,7 +3,7 @@ import math
 from typing import Optional, Tuple, Union, Any, Dict
 from enum import Enum, auto
 
-from spikeml.core.params import Params, NNParams, ConnectorParams, SpikeParams, SSensorParams, SNNParams, SSNNParams
+from spikeml.core.params import Params, LayerParams, ConnectorParams, SpikeParams, SSensorParams, SNNParams, SSNNParams
 from spikeml.core.base import Adapter, Module
 from spikeml.core.env import Source
 from spikeml.core.snn_monitor import SSensorMonitor, LayerMonitor, SNNMonitor, SSNNMonitor, ConnectorMonitor, LIConnectorMonitor

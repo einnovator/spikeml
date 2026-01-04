@@ -6,7 +6,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 from spikeml.utils.vector import _sum, upsample
 from spikeml.core.base import Component, Module, Fan, Composite, Chain, Adapter
-from spikeml.core.params import Params, NNParams, SpikeParams, SSensorParams, SNNParams, SSNNParams
+from spikeml.core.params import Params, LayerParams, SpikeParams, SSensorParams, SNNParams, SSNNParams
 
 from spikeml.core.snn_monitor import SSensorMonitor
 from spikeml.core.snn_viewer import  SSensorMonitorViewer

@@ -7,7 +7,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 from spikeml.utils.vector import _sum, upsample
 from spikeml.core.base import Component, Module, Fan, Composite, Chain, Adapter
-from spikeml.core.params import Params, NNParams
+from spikeml.core.params import Params, LayerParams
 
 from spikeml.core.snn_monitor import LayerMonitor
 from spikeml.core.snn_viewer import  LayerMonitorViewer
@@ -16,13 +16,64 @@ from spikeml.utils.nb_util import xdisplay, Markup
 from spikeml.core.signal import Source
 from spikeml.core.connector import Connector
 
-
-from spikeml.utils.vector import normalize_all
+from spikeml.utils.vector import normalize_all, _sum
 
 
 PHASE_PROPAGATION=0
 PHASE_LEARNING=1
 
+def bias_update(
+    b: np.ndarray,
+    y: np.ndarray,
+    params: Any,
+    batch: Optional[bool] = False,
+    debug: bool = False
+) -> np.ndarray:
+    """
+    Update the adaptive bias for a stochastic spike layer.
+
+    Parameters
+    ----------
+    b : np.ndarray
+        Current bias vector.
+    y : np.ndarray
+        Output of the layer.
+    params : SSNNParams
+        Parameters containing adaptive threshold settings.
+    debug : bool
+        If True, prints debug info.
+
+    Returns
+    -------
+    np.ndarray
+        Updated bias vector.
+    """
+    if params.t_b<=0:
+        return b
+    y_ = ((y-params.vmin)/(params.vmax-params.vmin))**params.e_b
+    y0_ = ((params.vmax-y)/(params.vmax-params.vmin))**params.e_b
+
+    dp = y_ * (1/params.t_b) if params.t_b>0 else None 
+    dn = - y0_ * (1/(params.t_bn)) if params.t_bn>0 else None
+    db = _sum(dp, dn)
+    if db is not None:
+        if batch:
+            db = db.sum(axis=0)
+        b_ = b + db
+        b_[b_<0] = 0
+    else:
+        b_ = b
+    if debug:
+        print(f'b : {b} ({params.t_b}, {params.t_bn})')
+        print(f'y : {y}')
+        print(f'y_: {y_}')
+        print(f'y0_: {y0_}')
+        print(f'dp:{dp}')
+        print(f'dn: {dn}')
+        print(f'db: {db}')
+        print(f'b->{b_}')
+
+    return b_
 
 class Layer(Module):
     """
@@ -182,7 +233,7 @@ class LinearLayer(SimpleLayer):
 
     def __init__(self,
                  M: Optional[Any] = None,
-                 b: Optional[Any] = None,
+                 b: Optional[Any] = 0,
                  batch: Optional[bool] = True,
                  phase: Optional[Any] = None,
                  params: Optional[Any] = None,
@@ -195,12 +246,12 @@ class LinearLayer(SimpleLayer):
         self.s,self.zs = None,None
         self.y,self.zy = None,None
         if isinstance(b, numbers.Number):
-            b = np.array(M.shape[0])
+            b = np.ones((M.shape[0]))*b
         self.b = b
         self.batch = batch
         self.r = None
         if params is None:
-            params = NNParams()
+            params = LayerParams()
         self.params = params
         if monitor==True:
             monitor = LayerMonitor(ref=self)
@@ -223,18 +274,18 @@ class LinearLayer(SimpleLayer):
             s, zs = s if isinstance(s, tuple) else (s, None)
             self.s, self.zs = s, zs
 
-            s = self._reshape_input(s)
             self.y = self._propagate(s)
             
             if zs is not None:
-                zs = self._reshape_input(zs)
                 self.zy = self._propagate(zs)
 
+
+            if self.b is not None:
+                self.b = bias_update(self.b, self.y, batch=self.batch, params=self.params)        
 
         if self.is_learning(context):
             if hasattr(self.M, 'propagate'):    
                 zs, zy = (self.zs,self.zy) if self.zs is not None else (self.s, self.y)   
-                zs = self._reshape_input(zs)
                 self.M.propagate(zs, zy, context)
 
         
@@ -246,6 +297,9 @@ class LinearLayer(SimpleLayer):
             _y = self.M @ x
         else:
             _y = x @ self.M.T
+        y = np.clip(_y, self.params.vmin, self.params.vmax)
+        if self.b is not None:
+            _y -= self.b
         y = np.clip(_y, self.params.vmin, self.params.vmax)
         return y
 

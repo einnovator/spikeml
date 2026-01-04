@@ -223,24 +223,23 @@ def normalize(a, norm=1):
     if norm==1:
         n = np.abs(a).sum()
     elif norm==2:
-        n = la.norm(a, axis=(-2,-1))
+        n = np.linalg.norm(a)
     else:
         n = 0
-
     return a/n if n!=0 else a
 
 
-def normalize_all(a, norm=1):
+def normalize_all(a, norm=1, axis=-1):
+    if len(a.shape)==1:
+        return normalize(a, norm)
     if norm==1:
-        a_ = a.reshape(a.shape[0], -1)
-        s_ = np.abs(a_).sum(-1)
-        print(s_)
+        s_ = np.abs(a).sum(axis)
         s_[s_ == 0] = 1
-        a_ = a_/s_[:,None]
-        return a_.reshape(a.shape)
+        a = a/s_[:,None]
+        return a
     elif norm==2:
-        n = np.linalg.norm(a, axis=(-2,-1))
-        a = a / n[:,None,None]
+        n = np.linalg.norm(a, axis=axis)
+        a = a / n[:,None]
         return a
     else:
         return a 
