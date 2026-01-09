@@ -235,6 +235,7 @@ class LinearLayer(SimpleLayer):
                  M: Optional[Any] = None,
                  b: Optional[Any] = 0,
                  batch: Optional[bool] = True,
+                 force: Optional[bool] = False,
                  phase: Optional[Any] = None,
                  params: Optional[Any] = None,
                  auto_sample: bool = False,
@@ -243,13 +244,13 @@ class LinearLayer(SimpleLayer):
                  name: Optional[str] = None,
                  callback: Optional[Any] = None) -> None:
         super().__init__(M=M, phase=phase, name=name, auto_sample=auto_sample, callback=callback)
-        self.s,self.zs = None,None
-        self.y,self.zy = None,None
+        self.s = None
+        self.y = None
         if isinstance(b, numbers.Number):
             b = np.ones((M.shape[0]))*b
         self.b = b
         self.batch = batch
-        self.r = None
+        self.force = force
         if params is None:
             params = LayerParams()
         self.params = params
@@ -271,26 +272,22 @@ class LinearLayer(SimpleLayer):
             Tuple containing updated potentials (y) and spikes (zy).
         """
         if self.is_propagation(context):
-            s, zs = s if isinstance(s, tuple) else (s, None)
-            self.s, self.zs = s, zs
-
-            self.y = self._propagate(s)
+            s, y = s if isinstance(s, tuple) else (s, None)
+            self.s, self.y = s, y
             
-            if zs is not None:
-                self.zy = self._propagate(zs)
-
-
+            if self.y is None or self.force:
+                self.y = self._propagate(s)
+            
             if self.b is not None:
                 self.b = bias_update(self.b, self.y, batch=self.batch, params=self.params)        
 
         if self.is_learning(context):
             if hasattr(self.M, 'propagate'):    
-                zs, zy = (self.zs,self.zy) if self.zs is not None else (self.s, self.y)   
-                self.M.propagate(zs, zy, context)
+                self.M.propagate(self.s, self.y, context)
 
         
-        return self.y,self.zy if self.zy is None else self.y 
-
+        return self.y
+    
 
     def _propagate(self, x):
         if not self.batch:
@@ -335,7 +332,8 @@ class NormalizeLayer(Layer):
         self.scale = scale
                 
     def propagate(self, s, context: Optional[Any]=None):
-        s_ = normalize_all(s, norm=self.norm)
+        s_ = s[0] if isinstance(s, tuple) else s 
+        s_ = normalize_all(s_, norm=self.norm)
         if self.scale is not None and self.scale!=1:
             s_ = s_ * self.scale
         return s_

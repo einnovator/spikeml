@@ -294,6 +294,110 @@ def __bias_update(
     return b_
 
             
+class SLinearLayer(SimpleLayer):
+    """
+    Spike interoperable Linear layer.
+    
+    Attributes:
+        M: Connector or matrix
+        batch: batch mode.
+        s, zs: Last Input and spike output.
+        y, zy: Last Output potentials and output spikes.
+        params: Layer parameters.
+        monitor: Optional monitoring object.
+        viewer: Optional viewer object.
+    """
+
+    def __init__(self,
+                 M: Optional[Any] = None,
+                 b: Optional[Any] = 0,
+                 batch: Optional[bool] = True,
+                 phase: Optional[Any] = None,
+                 params: Optional[Any] = None,
+                 auto_sample: bool = False,
+                 monitor: Union[bool, Any] = True,
+                 viewer: Union[bool, Any] = True,
+                 name: Optional[str] = None,
+                 callback: Optional[Any] = None) -> None:
+        super().__init__(M=M, phase=phase, name=name, auto_sample=auto_sample, callback=callback)
+        self.s,self.zs = None,None
+        self.y,self.zy = None,None
+        if isinstance(b, numbers.Number):
+            b = np.ones((M.shape[0]))*b
+        self.b = b
+        self.batch = batch
+        self.r = None
+        if params is None:
+            params = LayerParams()
+        self.params = params
+        if monitor==True:
+            monitor = LayerMonitor(ref=self)
+        if viewer==True:
+            viewer = LayerMonitorViewer(monitor)
+        self.viewer=viewer
+        self.monitor=monitor
+                
+    def propagate(self, s: Union[np.ndarray, Tuple[np.ndarray, np.ndarray]], context: Optional[Any]=None) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Propagate input spikes through the network and update neuron potentials.
+        
+        Args:
+            s: Input array or tuple (s, zs) of vector pair (rate, spikes).
+
+        Returns:
+            Tuple containing updated potentials (y) and spikes (zy).
+        """
+        if self.is_propagation(context):
+            s, zs = s if isinstance(s, tuple) else (s, None)
+            self.s, self.zs = s, zs
+            
+            
+
+            self.y = self._propagate(s)
+            
+            if zs is not None:
+                self.zy = self._propagate(zs)
+
+
+            if self.b is not None:
+                self.b = bias_update(self.b, self.y, batch=self.batch, params=self.params)        
+
+        if self.is_learning(context):
+            if hasattr(self.M, 'propagate'):    
+                zs, zy = (self.zs,self.zy) if self.zs is not None else (self.s, self.y)   
+                self.M.propagate(zs, zy, context)
+
+        
+        return self.y,self.zy if self.zy is None else self.y 
+
+
+    def _propagate(self, x):
+        if not self.batch:
+            _y = self.M @ x
+        else:
+            _y = x @ self.M.T
+        y = np.clip(_y, self.params.vmin, self.params.vmax)
+        if self.b is not None:
+            _y -= self.b
+        y = np.clip(_y, self.params.vmin, self.params.vmax)
+        return y
+
+    def _reshape_input(self, x):
+        if not self.batch:
+            x = x.flatten()
+        else:
+            x = x.reshape(x.shape[0], -1)
+        return x
+
+
+    def log(self, options: Optional[Dict[str, Any]] = None) -> None:
+        if self.zs is None:
+            print(f'{self.name}: s={self.s} -> y={self.y}') 
+        else:
+            print(f'{self.name}: s={self.s} | zs={self.zs} -> y={self.y} | zy={self.zy}') 
+
+        self.log_connector(options)
+
 class SNN(SimpleLayer):
     """
     Leaky-Integrator Spiking Neural Network layer with adaptive threshold and random noise.

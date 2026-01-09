@@ -535,25 +535,28 @@ class DataRunner(Runner):
         """
             
         context = Context()
+
+        log_epoch = options.get('log.epoch', log_epoch)
+        log_step = options.get('log.step',  options.get('log.time',  options.get('log.batch', log_step)))
         
+        done = False
+        context.epochs = epochs
         for epoch in range(epochs):
             context.epoch = epoch
-            context.epochs = epoch
 
-            debug_ = log_epoch is not None and log_epoch>=0 and (epoch==0 or (log_epoch>0 and epoch%log_epoch==0))
+            _debug_epoch = log_epoch is not None and log_epoch>=0 and (epoch==0 or (log_epoch>0 and epoch%log_epoch==0))
 
-            if options is None or options.get('log.epoch', True):
-                if self.epochs>1:
+            if _debug_epoch:
+                if self.epochs is not None and self.epochs>1:
                     print(f'epoch = {epoch}:')
             
             for idx, x in enumerate(loader): 
                 context.idx = idx
                     
-                debug_ = log_step is not None and log_step>=0 and (idx==0 or (log_step>0 and idx%log_step==0))
+                _debug_step = log_step is not None and log_step>=0 and (idx==0 or (log_step>0 and idx%log_step==0))
                 
-                if debug_:
-                    if options is None or options.get('log.time', True):
-                        print(f'step = {idx}:')
+                if _debug_step:
+                    print(f'step = {idx}:')
                     
                 
                 out = ref(x, context)
@@ -561,13 +564,16 @@ class DataRunner(Runner):
                 ref.sample(context)
 
                 if callback is not None:
-                    if callback(context)==False:
+                    if callback(self, x, out, context)==False:
                         done = True
+                        break
 
-                if debug_:
-                    if options is None or options.get('log.modules', True):
-                        ref.log(options)
-                        print('-'*10)
+                if options is None or options.get('log.modules', True):
+                    ref.log(options)
+                    print('-'*10)
+
+            if done:
+                break
                         
         if report:
             ref.log_monitor(options)

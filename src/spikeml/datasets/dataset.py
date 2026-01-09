@@ -202,23 +202,31 @@ class DataLoader:
         else:
             sampler = SequentialSampler(dataset)
 
-        self.batch_sampler = BatchSampler(
-            sampler,
-            batch_size=batch_size,
-            drop_last=drop_last
-        )
-
+        if batch_size>=1:
+            self.batch_sampler = BatchSampler(
+                sampler,
+                batch_size=batch_size,
+                drop_last=drop_last
+            )
+        else:
+            self.batch_sampler = sampler
 
     def __iter__(self):
-        if self.num_workers <= 0:
-            for batch_indices in self.batch_sampler:
-                samples = [self.dataset[i] for i in batch_indices]
-                out = self.collate_fn(samples)
-                if self.pin_memory:
-                    out = pin_numpy(out)
+        if self.batch_size<=0:
+            for index in self.batch_sampler:
+                sample = self.dataset[index]
+                out = sample
                 yield out
-        else:
-            yield from self._threaded_iterator()
+        else: 
+            if self.num_workers <= 0:
+                for batch_indices in self.batch_sampler:
+                    samples = [self.dataset[i] for i in batch_indices]
+                    out = self.collate_fn(samples)
+                    if self.pin_memory:
+                        out = pin_numpy(out)
+                    yield out
+            else:
+                yield from self._threaded_iterator()
 
     def _threaded_iterator(self):
         q = queue.Queue(maxsize=self.prefetch)
