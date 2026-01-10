@@ -5,8 +5,8 @@ from typing import Any, Callable, Dict, Optional, Union, List, Tuple
 
 
 from spikeml.core.base import Component
-from spikeml.core.snn_monitor import ErrorMonitor
-from spikeml.core.snn_viewer import ErrorMonitorViewer
+from spikeml.core.feedback_monitor import ErrorMonitor
+from spikeml.core.feedback_viewer import ErrorMonitorViewer
 from spikeml.core.feedback import compute_error, compute_sg, FeedbackAdapter
 from spikeml.core.spikes import spike
 from spikeml.core.snn import Connector, SimpleLayer
@@ -541,6 +541,7 @@ class DataRunner(Runner):
         
         done = False
         context.epochs = epochs
+        context.t = 0
         for epoch in range(epochs):
             context.epoch = epoch
 
@@ -571,6 +572,8 @@ class DataRunner(Runner):
                 if options is None or options.get('log.modules', True):
                     ref.log(options)
                     print('-'*10)
+
+                context.t += 1
 
             if done:
                 break

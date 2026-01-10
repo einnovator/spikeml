@@ -8,8 +8,8 @@ from spikeml.utils.vector import _sum, upsample
 from spikeml.core.base import Component, Module, Fan, Composite, Chain, Adapter
 from spikeml.core.params import Params, LayerParams, SpikeParams, SSensorParams, SNNParams, SSNNParams
 
-from spikeml.core.snn_monitor import SSensorMonitor
-from spikeml.core.snn_viewer import  SSensorMonitorViewer
+from spikeml.core.sensor_monitor import SSensorMonitor
+from spikeml.core.sensor_viewer import  SSensorMonitorViewer
 
 from spikeml.core.layer import Layer
 

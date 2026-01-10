@@ -8,8 +8,8 @@ from spikeml.utils.vector import _sum, upsample
 from spikeml.core.base import Component, Module, Fan, Composite, Chain, Adapter
 from spikeml.core.params import Params, LayerParams, ConnectorParams, SpikeParams, SSensorParams, SNNParams, SSNNParams
 
-from spikeml.core.snn_monitor import ConnectorMonitor, RateConnectorMonitor, LIConnectorMonitor
-from spikeml.core.snn_viewer import  ConnectorMonitorViewer, RateConnectorMonitorViewer, LIConnectorMonitorViewer
+from spikeml.core.connector_monitor import ConnectorMonitor, RateConnectorMonitor, LIConnectorMonitor
+from spikeml.core.connector_viewer import  ConnectorMonitorViewer, RateConnectorMonitorViewer, LIConnectorMonitorViewer
 
 from spikeml.core.matrix import matrix_split, normalize_matrix, _mult, cmask, cmask2, matrix_init, matrix_init2
 from spikeml.utils.nb_util import xdisplay, Markup
@@ -132,20 +132,22 @@ class RateConnector(LinearConnector):
         self.dM = self.dMp = self.dMn = None
         
     def propagate(self, zs, zy, context: Optional[Any]=None):
-        self._M = self.M
+        self._M = self.M.copy()
+        self.dMp = self.dMn = None 
         if not self.batch:
-            self.Zp = np.outer(zy, zs)
-            self.Zn = np.outer(zy, 1-zs)
-            self.dMp = (1/self.params.t_p)*(self.Zp) if self.params.t_p>0 else None #LTP
-            self.dMn = -(1/self.params.t_d)*(self.Zn) if self.params.t_d>0 else None #LTD
+            if self.params.t_p>0:
+                self.Zp = np.outer(zy, zs)
+                self.dMp = (1/self.params.t_p)*(self.Zp)
+            if self.params.t_d>0: 
+                self.Zn = np.outer(zy, self.params.vmax-zs)
+                self.dMn = -(1/self.params.t_d)*(self.Zn)
         else:        
-            self.dMp = self.dMn = None 
             if self.params.t_p>0:
                 Zp = zy[:, :, None] * zs[:, None, :]
                 dMp = (1/self.params.t_p)*Zp 
                 self.dMp = np.sum(dMp, 0)
             if self.params.t_d>0:
-                Zn = zy[:, :, None] * (1 - zs[:, None, :])
+                Zn = zy[:, :, None] * (self.params.vmax - zs[:, None, :])
                 dMn = (1/self.params.t_d)*Zn 
                 self.dMn = -np.sum(dMn, 0)
                 

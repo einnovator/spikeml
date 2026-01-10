@@ -106,7 +106,7 @@ class LayerParams(Params):
         s = str(vars(self))
         return f'{type(self).__name__}({s})'        
 
-class ConnectorParams(Params):
+class ConnectorParams(LayerParams):
     """
     Synaptic connection parameters governing LTP/LTD and normalization.
 

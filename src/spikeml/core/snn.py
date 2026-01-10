@@ -8,8 +8,15 @@ from spikeml.utils.vector import _sum, upsample
 from spikeml.core.base import Component, Module, Fan, Composite, Chain, Adapter
 from spikeml.core.params import Params, BiasParams, LayerParams, ConnectorParams, SpikeParams, SSensorParams, SNNParams, SSNNParams
 
-from spikeml.core.snn_monitor import LayerMonitor, SNNMonitor, SSNNMonitor, ConnectorMonitor, RateConnectorMonitor, LIConnectorMonitor
-from spikeml.core.snn_viewer import  LayerMonitorViewer, SNNMonitorViewer, SSNNMonitorViewer, ConnectorMonitorViewer, RateConnectorMonitorViewer, LIConnectorMonitorViewer
+from spikeml.core.sensor_monitor import SSensorMonitor
+from spikeml.core.sensor_viewer import SSensorMonitorViewer
+from spikeml.core.layer_monitor import LayerMonitor
+from spikeml.core.connector_monitor import ConnectorMonitor, LIConnectorMonitor
+from spikeml.core.snn_monitor import SNNMonitor, SSNNMonitor
+from spikeml.core.layer_viewer import LayerMonitorViewer
+from spikeml.core.snn_viewer import SNNMonitorViewer, SSNNMonitorViewer
+from spikeml.core.connector_viewer import ConnectorMonitorViewer, LIConnectorMonitorViewer
+from spikeml.core.feedback_viewer import ErrorMonitorViewer
 
 from spikeml.core.spikes import pspike, spike
 from spikeml.core.matrix import matrix_split, normalize_matrix, _mult, cmask, cmask2, matrix_init, matrix_init2

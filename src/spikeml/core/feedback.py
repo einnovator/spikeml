@@ -3,12 +3,10 @@ import math
 from typing import Optional, Tuple, Union, Any, Dict
 from enum import Enum, auto
 
-from spikeml.core.params import Params, LayerParams, ConnectorParams, SpikeParams, SSensorParams, SNNParams, SSNNParams
 from spikeml.core.base import Adapter, Module
 from spikeml.core.env import Source
-from spikeml.core.snn_monitor import SSensorMonitor, LayerMonitor, SNNMonitor, SSNNMonitor, ConnectorMonitor, LIConnectorMonitor
-from spikeml.core.snn_monitor import  ErrorMonitor
-from spikeml.core.snn_viewer import  ErrorMonitorViewer
+from spikeml.core.feedback_monitor import  ErrorMonitor
+from spikeml.core.feedback_viewer import  ErrorMonitorViewer
 from spikeml.core.layer import PHASE_PROPAGATION, PHASE_LEARNING
 
 PHASES2 = [PHASE_PROPAGATION, PHASE_LEARNING]
@@ -17,7 +15,7 @@ PHASES2 = [PHASE_PROPAGATION, PHASE_LEARNING]
 def compute_error(
     s: np.ndarray,
     y: np.ndarray,
-    params: Optional['SSNNParams'] = None,
+    params: Any,
     mean: bool = True,
     strict: bool = False
 ) -> float:
@@ -84,8 +82,6 @@ def compute_error(
     """
 
     
-    if params is None:
-        params = SSNNParams()
     if strict:
         p = s * (params.vmax-y)+(params.vmax-s)*y
     else:

@@ -162,6 +162,15 @@ class Component():
         if self.monitor:
             self.monitor.log(options)
             
+    def _prefix(self, _type=True):
+        s = []
+        if self.name is not None and len(self.name)>0:
+            s.append(self.name)
+        if _type:
+            s.append(f'({type(self).__name__})')
+        return ''.join(s)
+
+            
 class Module(Component):
     """
     Abstract computational module extending `Component`.
@@ -364,6 +373,7 @@ class Composite(Module):
             Additional logging configuration.
         """
         for ref in self.refs:
+            #if filter('M', options, self):    
             if options is not None:
                 _types = options.get('types', None)
                 if _types is not None:

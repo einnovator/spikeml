@@ -9,8 +9,8 @@ from spikeml.utils.vector import _sum, upsample
 from spikeml.core.base import Component, Module, Fan, Composite, Chain, Adapter
 from spikeml.core.params import Params, LayerParams
 
-from spikeml.core.snn_monitor import LayerMonitor
-from spikeml.core.snn_viewer import  LayerMonitorViewer
+from spikeml.core.layer_monitor import LayerMonitor
+from spikeml.core.layer_viewer import  LayerMonitorViewer
 
 from spikeml.utils.nb_util import xdisplay, Markup
 from spikeml.core.signal import Source
@@ -194,7 +194,7 @@ class SimpleLayer(Layer):
             self.M.post_step(s, y)
 
     def log_connector(self, options: Optional[Dict[str, Any]] = None):
-        if options is None or options.get('log.matrix', True):
+        if options is None or options.get('log.connector', True):
             if hasattr(self.M, 'log'):
                 self.M.log(options)
             elif self.M is not None:
@@ -271,22 +271,23 @@ class LinearLayer(SimpleLayer):
         Returns:
             Tuple containing updated potentials (y) and spikes (zy).
         """
-        if self.is_propagation(context):
-            s, y = s if isinstance(s, tuple) else (s, None)
-            self.s, self.y = s, y
-            
-            if self.y is None or self.force:
-                self.y = self._propagate(s)
-            
+        self.s, _y = s if isinstance(s, tuple) else (s, None)
+
+        if self.is_propagation(context):    
+            self.y = self._propagate(self.s)
+                
             if self.b is not None:
                 self.b = bias_update(self.b, self.y, batch=self.batch, params=self.params)        
 
+        if _y is None or not self.force:
+            _y = self.y
+            
         if self.is_learning(context):
-            if hasattr(self.M, 'propagate'):    
-                self.M.propagate(self.s, self.y, context)
+            if hasattr(self.M, 'propagate'): 
+                self.M.propagate(self.s, _y, context)
 
         
-        return self.y
+        return (self.y, s[1]) if isinstance(s, tuple) else self.y
     
 
     def _propagate(self, x):
@@ -309,11 +310,9 @@ class LinearLayer(SimpleLayer):
 
 
     def log(self, options: Optional[Dict[str, Any]] = None) -> None:
-        if self.zs is None:
-            print(f'{self.name}: s={self.s} -> y={self.y}') 
-        else:
-            print(f'{self.name}: s={self.s} | zs={self.zs} -> y={self.y} | zy={self.zy}') 
-
+        print(f'{self._prefix()}: s={self.s} -> y={self.y}') 
+        if self.b is not None:
+            print(f'{self._prefix()}: b={self.b}') 
         self.log_connector(options)
 
 
@@ -336,7 +335,7 @@ class NormalizeLayer(Layer):
         s_ = normalize_all(s_, norm=self.norm)
         if self.scale is not None and self.scale!=1:
             s_ = s_ * self.scale
-        return s_
+        return (s_, s[1]) if isinstance(s, tuple) else s_ 
 
     
 class ThresholdLayer(Layer):
