@@ -105,7 +105,9 @@ class Layer(Module):
     def is_learning(self, context: Optional[Any]=None):
         return context is None or context.phase is None or context.phase==PHASE_LEARNING
 
-
+    def predict(self, x):
+        context = Context(phase=PHASE_PROPAGATION)
+        return self.propagate(x, context)
 
 class SimpleLayer(Layer):
     """

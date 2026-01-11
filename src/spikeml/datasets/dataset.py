@@ -211,6 +211,9 @@ class DataLoader:
         else:
             self.batch_sampler = sampler
 
+    def is_batch(self):
+        return self.batch_size>0
+ 
     def __iter__(self):
         if self.batch_size<=0:
             for index in self.batch_sampler:

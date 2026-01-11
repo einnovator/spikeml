@@ -13,15 +13,24 @@ from spikeml.core.snn import Connector, SimpleLayer
 from spikeml.core.env import Source
 from spikeml.core.signal import SimpleSignal
 
+from spikeml.core.layer import PHASE_PROPAGATION
+
+
+
 class Context():
     """Execution context for neural network simulations.
 
     Attributes:
         t (int): Current simulation timestep (>0).
+        phase (any): Active phase
     """
     t: int = 0
     phase: Any = None
     
+    def __init__(self, t: int = 0, phase: Any = None):
+        self.t = t
+        self.phase = phase
+        
     def set_attr(self, key, value):
         setattr(self, key, value)
         
@@ -569,7 +578,7 @@ class DataRunner(Runner):
                         done = True
                         break
 
-                if options is None or options.get('log.modules', True):
+                if options is not None and options.get('log.modules', False):
                     ref.log(options)
                     print('-'*10)
 
@@ -586,6 +595,100 @@ class DataRunner(Runner):
 
         result = { 'ref': ref, 'context': context }
         return result
+
+
+class InferenceRunner(Runner):
+    """
+    Runner for a DataLoader/Dataset.
+    
+    Attributes:
+    """
+    def __init__(self, ref: Any,
+        loader: Any,
+        log_step: int = 1,
+        log_epoch: int = 1,
+        callback: Optional[Callable[[Context], bool]] = None,
+        options: Optional[Dict[str, Any]] = None):
+        super().__init__()
+        self.ref = ref
+        self.loader = loader
+        self.log_step = log_step
+        self.callback = callback
+        self.options = options
+
+    def run(self, options: Optional[Dict[str, Any]] = None):
+        if options is None:
+            options = self.options
+        self.result = self._run(ref=self.ref, loader=self.loader, log_step=self.log_step,
+                  callback=self.callback, options=options)
+        return self.result
+            
+    def _run(self, 
+        ref: Any,
+        loader: Any,
+        log_step: int = 1,
+        callback: Optional[Callable[[Context], bool]] = None,
+        options: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Run a single simulation over time.
+
+        Args:
+            ref: Root simulation object with methods `__call__`, `sample`, `log`, and `render`.
+            ss (np.ndarray): Input stimulus array (shape: [T, N] or [N]).
+            T (int, optional): Number of time steps. Defaults to inferred from `ss` if not given.
+            params: Simulation or model parameters (must define attributes `vmin`, `vmax`, `e_err`, `g`).
+            feedback (bool, optional): Whether to enable error feedback loop. Defaults to True.
+            report (bool, optional): Whether to output run report. Defaults to True.
+            plot (bool, optional): Whether to render plots after the run. Defaults to True.
+            callback (Callable[[Context], bool], optional): Function called at each timestep.
+                Return False to stop simulation early.
+            log_step (int, optional): Frequency of log output (in steps). Defaults to 1.
+            options (dict, optional): Extra configuration flags for logging and rendering.
+
+        Returns:
+            dict: A dictionary containing simulation results:
+                - `'nn'`: Final neural network state
+                - `'err_monitor'`: Error monitor instance (if feedback enabled)
+                - `'err_viewer'`: Error viewer instance (if feedback enabled)
+                - `'t'`: Final timestep index
+        """
+            
+        context = Context(phase=PHASE_PROPAGATION)
+
+        if options is not None:
+            log_step = options.get('log.step',  options.get('log.time',  options.get('log.batch', log_step)))
+        
+        yy = []
+        for idx, x in enumerate(loader): 
+            context.idx = idx
+                
+            _debug_step = log_step is not None and log_step>=0 and (idx==0 or (log_step>0 and idx%log_step==0))
+            
+            if _debug_step:
+                print(f'step = {idx}:')
+                
+            
+            y = ref(x, context)
+            
+            yy.append(y)
+
+            if callback is not None:
+                if callback(self, x, y, context)==False:
+                    break
+
+            if options is not None and options.get('log.modules', False):
+                ref.log(options)
+                print('-'*10)
+
+            context.t += 1
+                    
+
+        if loader.is_batch():
+            yy = np.concatenate(yy)
+        else:
+            yy = np.stack(yy)
+            
+        return yy
 
 
 
