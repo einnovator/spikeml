@@ -33,7 +33,7 @@ def show_img(img, title=None, cmap=None, bgr=False, title_size=8, ax=None, figsi
     return ax
 
 #imgs: [array(H,W)[:int32]]
-def show_imgs(imgs, titles=None, cmap=None, ncols=None, nrows=None, bgr=False, title_size=4, figsize=None, pad=0):
+def show_imgs(imgs, titles=None, suptitle=None, cmap=None, ncols=None, nrows=None, bgr=False, suptitle_size=6, title_size=6, figsize=None, pad=0):
     if isinstance(imgs, list):
         imgs = np.array(imgs)
     n = imgs.shape[0]
@@ -69,6 +69,8 @@ def show_imgs(imgs, titles=None, cmap=None, ncols=None, nrows=None, bgr=False, t
         STYLE_PLOT_TITLE= {'fontsize': title_size }
         if titles and i<len(titles):
             axs[i].set_title(str(titles[i]), **STYLE_PLOT_TITLE)
+    if suptitle is not None:
+        plt.suptitle(suptitle, fontsize=suptitle_size)
     plt.show()
     return axs
 

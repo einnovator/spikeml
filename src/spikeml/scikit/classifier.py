@@ -11,9 +11,9 @@ from spikeml.datasets.encoder import one_hot
 class ScikitClassifierAdapter(BaseEstimator, ClassifierMixin):
     def __init__(self, ref, epochs=1, labels=None, batch_size=-1):
         self.ref = ref
-        self.batch_size = batch_size
+        self.epochs = epochs
         self.labels = labels
-        self.epochs = 1
+        self.batch_size = batch_size
         
     def fit(self, X, y):
         # Validate inputs
@@ -37,17 +37,17 @@ class ScikitClassifierAdapter(BaseEstimator, ClassifierMixin):
         #X = check_array(X)
         dataset = SimpleDataset(X)
         loader = DataLoader(dataset, batch_size=self.batch_size)
-        runner = InferenceRunner(ref, loader, log_step=-1)
+        runner = InferenceRunner(self.ref, loader, log_step=-1)
         yy_prob = runner.run(options={})
         yy_pred = np.argmax(yy_prob, -1)
         return yy_prob, yy_pred
         
     def predict(self, X):
-        _, yy_pred = self.predict(X)
+        _, yy_pred = self._predict(X)
         return yy_pred
     
     def predict_proba(self, X):
-        yy_prob, _ = self.predict(X)
+        yy_prob, _ = self._predict(X)
         return yy_prob
 
 
