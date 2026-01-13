@@ -20,10 +20,9 @@ class Connector(Component):
     Neural Connections base class.
     """
 
-    def __init__(self, params=None,  batch: Optional[bool] = True,
+    def __init__(self, params=None,
         auto_sample=True, monitor=None, viewer=None, name=None, callback=None):
         super().__init__(name=name, params=params, auto_sample=auto_sample, monitor=monitor, viewer=viewer, callback=callback)
-        self.batch = batch
         
     def step(self, s, y, context: Optional[Any]=None):
         y = self.propagate(s, y, context)
@@ -32,6 +31,9 @@ class Connector(Component):
     def __call__(self, s, y, context: Optional[Any]=None):
         return self.step(s, y, context)
 
+    def is_batch(self, context: Optional[Any]=None):
+        return context is not None and context.batch
+    
     def propagate(self, s, y, context: Optional[Any]=None):
         return None
 
@@ -40,22 +42,25 @@ class LinearConnector(Connector):
     Linear Connector. Connection weight are static. Sub-class implement specific update rules and dynamics.
     """
 
-    def __init__(self, M=None, size=None, params=None, batch: Optional[bool] = True,
+    def __init__(self, M=None, params=None,
         monitor=True, viewer=None, name=None, callback=None):
-        super().__init__(params=params, batch=batch, name=name, callback=callback)
+        super().__init__(params=params, name=name, callback=callback)
         if params is None:
             params = ConnectorParams()
         self.params = params
-        if M is None:
-            M = matrix_init(params=params, size=size)
-        self.M = M
-        self.shape = M.shape if M is not None else None 
+        self.M = self._init_matrix(M, params)
+        self.shape =self.M.shape if self.M is not None else None 
         if monitor==True:
             monitor = LIConnectorMonitor(ref=self)
         if viewer==True:
             viewer = LIConnectorMonitorViewer(monitor)
         self.viewer=viewer
         self.monitor=monitor
+
+    def _init_matrix(self, M, params):
+        if isinstance(M, tuple) or isinstance(M, (int, float)) and not isinstance(M, bool):
+            M = matrix_init(size=M, params=params)
+        return M
 
     def render(self, options: Optional[Dict[str, Any]] = None) -> None:
         super().render(options)
@@ -117,10 +122,9 @@ class RateConnector(LinearConnector):
     Linear Connector with rate-based update rules.
     """
 
-    def __init__(self, M=None, size=None, params=None, 
-        batch: Optional[bool] = True,
+    def __init__(self, M=None, params=None, 
         monitor=True, viewer=True, name=None, callback=None):
-        super().__init__(M=M, size=size, params=params,  batch=batch, monitor=monitor, viewer=viewer, name=name, callback=callback)
+        super().__init__(M=M, params=params, monitor=monitor, viewer=viewer, name=name, callback=callback)
         if monitor==True:
             monitor = RateConnectorMonitor(ref=self)
         if viewer==True:
@@ -134,7 +138,7 @@ class RateConnector(LinearConnector):
     def propagate(self, zs, zy, context: Optional[Any]=None):
         self._M = self.M.copy()
         self.dMp = self.dMn = None 
-        if not self.batch:
+        if not self.is_batch(context):
             if self.params.t_p>0:
                 self.Zp = np.outer(zy, zs)
                 self.dMp = (1/self.params.t_p)*(self.Zp)
@@ -170,9 +174,9 @@ class LIConnector(LinearConnector):
     Leaky-integrate LTP/LTD connections.
     """
 
-    def __init__(self, M=None, size=None, params=None, batch: Optional[bool] = True,
+    def __init__(self, M=None, params=None, 
                 monitor=True, viewer=True, name=None, callback=None):
-        super().__init__(M=M, size=size, params=params,  batch=batch, name=name, callback=callback)
+        super().__init__(M=M, params=params, name=name, callback=callback)
         if self.M is not None:
             self.Cp, self.Cn = np.zeros(self.M.shape), np.zeros(self.M.shape)
             self._Cp, self._Cn = np.zeros(self.M.shape), np.zeros(self.M.shape)
@@ -300,9 +304,9 @@ class LIConnector(LinearConnector):
             xdisplay(Markup('M', self.M, Markup('Cp', self.Cp), Markup('Cn', self.Cn)))
                 
 class LIConnector2(LinearConnector):
-    def __init__(self, Mp=None, Mn=None, params=None, batch: Optional[bool] = True,
+    def __init__(self, Mp=None, Mn=None, params=None,
         monitor=True, viewer=True, name=None, callback=None):
-        super().__init__(params=params, batch=batch, name=name, callback=callback)
+        super().__init__(params=params, name=name, callback=callback)
         self.Mp = Mp
         self.Mn = Mn
 

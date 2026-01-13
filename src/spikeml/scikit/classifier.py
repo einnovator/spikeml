@@ -34,7 +34,7 @@ class ScikitClassifierAdapter(BaseEstimator, ClassifierMixin):
 
     def _predict(self, X):
         #check_is_fitted(self, ["classes_"])
-        #X = check_array(X)
+        X = check_array(X)
         dataset = SimpleDataset(X)
         loader = DataLoader(dataset, batch_size=self.batch_size)
         runner = InferenceRunner(self.ref, loader, log_step=-1)

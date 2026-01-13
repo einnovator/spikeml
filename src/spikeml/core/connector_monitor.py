@@ -88,7 +88,8 @@ class RateConnectorMonitor(ConnectorMonitor):
         prefix = self._prefix()
         sx = self._get_sensor_input()
         if sx is None:
-            print('WARN: No sensor input:', self)
+            if options is not None and options.get('verbose', False):
+                print('WARN: No sensor input:', self)
             return
         print(f'{prefix}.Zp:')
         ref, size, n = sum_per_input(self.Zp, sx, E=self.E)
@@ -130,7 +131,8 @@ class LIConnectorMonitor(ConnectorMonitor):
         prefix = self._prefix()
         sx = self._get_sensor_input()
         if sx is None:
-            print('WARN: No sensor input:', self)
+            if options is not None and options.get('verbose', False):
+                print('WARN: No sensor input:', self)
             return
         print(f'{prefix}.Wp:')
         ref, size, n = sum_per_input(self.Wp, sx, E=self.E)

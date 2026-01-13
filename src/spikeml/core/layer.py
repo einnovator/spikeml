@@ -105,6 +105,9 @@ class Layer(Module):
     def is_learning(self, context: Optional[Any]=None):
         return context is None or context.phase is None or context.phase==PHASE_LEARNING
 
+    def is_batch(self, context: Optional[Any]=None):
+        return context is not None and context.batch
+
     def predict(self, x):
         context = Context(phase=PHASE_PROPAGATION)
         return self.propagate(x, context)
@@ -225,7 +228,6 @@ class LinearLayer(SimpleLayer):
     
     Attributes:
         M: Connector or matrix
-        batch: batch mode.
         s, zs: Last Input and spike output.
         y, zy: Last Output potentials and output spikes.
         params: Layer parameters.
@@ -236,7 +238,6 @@ class LinearLayer(SimpleLayer):
     def __init__(self,
                  M: Optional[Any] = None,
                  b: Optional[Any] = 0,
-                 batch: Optional[bool] = True,
                  force: Optional[bool] = False,
                  phase: Optional[Any] = None,
                  params: Optional[Any] = None,
@@ -251,7 +252,6 @@ class LinearLayer(SimpleLayer):
         if isinstance(b, numbers.Number):
             b = np.ones((M.shape[0]))*b
         self.b = b
-        self.batch = batch
         self.force = force
         if params is None:
             params = LayerParams()
@@ -275,16 +275,17 @@ class LinearLayer(SimpleLayer):
         """
         self.s, _y = s if isinstance(s, tuple) else (s, None)
 
-        if self.is_propagation(context):    
-            self.y = self._propagate(self.s)
-                
-            if self.b is not None:
-                self.b = bias_update(self.b, self.y, batch=self.batch, params=self.params)        
 
+        if self.is_propagation(context):    
+            self.y = self._propagate(self.s, batch=self.is_batch(context))
+                
         if _y is None or not self.force:
             _y = self.y
             
         if self.is_learning(context):
+            if self.b is not None:
+                self.b = bias_update(self.b, self.y, batch=self.is_batch(context), params=self.params)        
+
             if hasattr(self.M, 'propagate'): 
                 self.M.propagate(self.s, _y, context)
 
@@ -292,8 +293,8 @@ class LinearLayer(SimpleLayer):
         return (self.y, s[1]) if isinstance(s, tuple) else self.y
     
 
-    def _propagate(self, x):
-        if not self.batch:
+    def _propagate(self, x, batch):
+        if not batch:
             _y = self.M @ x
         else:
             _y = x @ self.M.T
@@ -303,12 +304,6 @@ class LinearLayer(SimpleLayer):
         y = np.clip(_y, self.params.vmin, self.params.vmax)
         return y
 
-    def _reshape_input(self, x):
-        if not self.batch:
-            x = x.flatten()
-        else:
-            x = x.reshape(x.shape[0], -1)
-        return x
 
 
     def log(self, options: Optional[Dict[str, Any]] = None) -> None:

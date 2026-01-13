@@ -220,7 +220,7 @@ def matrix_init(
     if size is None:
         return None
     if isinstance(size, (int, float)) and not isinstance(size, bool):
-        size = [size, size]
+        size = (int(size), int(size))
     if params.sd==0:
         M = np.zeros(size)   
         if params.mean!=0:

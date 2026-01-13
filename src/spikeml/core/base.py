@@ -288,6 +288,11 @@ class Composite(Module):
             for ref in refs:
                 ref._parent = self
 
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return self.refs[key] 
+        return self.find(key)
+    
     def append(self, ref: Union[Module|List[Module]]):
         if self.refs is None:
             self.refs = []

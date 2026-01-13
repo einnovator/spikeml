@@ -98,13 +98,15 @@ class SensingMonitor(Monitor):
                     #print('  !sx:', len(sx) if sx is not None else None)
                     return sx
         else:
-            print('WARN: no parent:', self.ref)            
+            if options is not None and options.get('verbose', False):
+                print('WARN: no parent:', self.ref)            
         return None
     
     def _log(self, options: Optional[Dict[str, Any]] = None) -> None:
         sx = self._get_sensor_input()
         if sx is None:
-            print('WARN: No sensor input', self)
+            if options is not None and options.get('verbose', False):
+                print('WARN: No sensor input', self)
             return
         ref, size, n = sum_per_input(self.zy, sx, E=self.E)
         ref_, ranges, n_ = sum_per_input(self.zy, sx, E=self.E, aggregate=False)

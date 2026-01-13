@@ -26,10 +26,12 @@ class Context():
     """
     t: int = 0
     phase: Any = None
+    batch: bool = None
     
-    def __init__(self, t: int = 0, phase: Any = None):
+    def __init__(self, t: int = 0, phase: Any = None, batch: bool = None):
         self.t = t
         self.phase = phase
+        self.batch = batch
         
     def set_attr(self, key, value):
         setattr(self, key, value)
@@ -543,7 +545,7 @@ class DataRunner(Runner):
                 - `'t'`: Final timestep index
         """
             
-        context = Context()
+        context = Context(batch=loader.is_batch())
 
         log_epoch = options.get('log.epoch', log_epoch)
         log_step = options.get('log.step',  options.get('log.time',  options.get('log.batch', log_step)))
@@ -653,7 +655,7 @@ class InferenceRunner(Runner):
                 - `'t'`: Final timestep index
         """
             
-        context = Context(phase=PHASE_PROPAGATION)
+        context = Context(phase=PHASE_PROPAGATION, batch=loader.is_batch())
 
         if options is not None:
             log_step = options.get('log.step',  options.get('log.time',  options.get('log.batch', log_step)))

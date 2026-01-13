@@ -22,14 +22,14 @@ class LayerMonitor(SensingMonitor):
     def _sample(self, context: Optional[Any]=None) -> None:
         """Sample layer properties and compute derived values."""
         self._sample_prop('y')
-        self.compute()
+        self.compute(context)
         self._sample_prop('u')
         self._sample_prop('us')
 
-    def compute(self) -> None:
+    def compute(self, context: Optional[Any]=None) -> None:
         """Compute aggregated values from the layer (e.g., total spikes, outputs)."""
         ref = self.ref
-        if self.ref.batch:
+        if context is not None and context.batch:
             ref.u = ref.y.sum(axis=tuple(range(1, ref.y.ndim)))
             ref.us = ref.s.sum(axis=tuple(range(1, ref.s.ndim)))        
         else:
