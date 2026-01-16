@@ -12,7 +12,7 @@ from PIL import Image
 
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
-def show_img(img, title=None, cmap=None, bgr=False, title_size=8, ax=None, figsize=None):
+def show_img(img, title=None, cmap=None, bgr=False, title_size=8, ax=None, figsize=None, colorbar=False, aspect='auto'):
     if 'torch' in sys.modules and torch.is_tensor(img):
         if len(img.shape)==2: img= img.unsqueeze(dim=0)
         img = img.permute(1, 2, 0)
@@ -27,10 +27,18 @@ def show_img(img, title=None, cmap=None, bgr=False, title_size=8, ax=None, figsi
         cmap = 'gray' if len(img.shape)==2 else None
     if bgr and len(img.shape)==3 and img.shape[2]==3:
         img=cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    ax.imshow(img, cmap=cmap)
+    ax.imshow(img, cmap=cmap, aspect=aspect)
+    if colorbar:
+        plt.colorbar()
     if fig is not None:
         plt.show()
     return ax
+
+DEFAULT_CMAP='viridis'
+
+def mshow(img, title=None, cmap=DEFAULT_CMAP, title_size=8, ax=None, figsize=None, colorbar=False, aspect='auto'):
+    show_img(img, title=title, cmap=cmap, title_size=title_size, ax=ax, figsize=figsize, aspect=aspect)
+
 
 #imgs: [array(H,W)[:int32]]
 def show_imgs(imgs, titles=None, suptitle=None, cmap=None, ncols=None, nrows=None, bgr=False, suptitle_size=6, title_size=6, figsize=None, pad=0):
