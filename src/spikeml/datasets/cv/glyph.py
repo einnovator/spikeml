@@ -40,6 +40,8 @@ def glyph(n=0, shape=(28,28), color=(255,255,255), lw=1, dx=0, dy=0, sx=1, sy=1,
     return make_glyph(n, shape=shape, color=color, lw=lw, dx=dx, dy=dy, sx=sx, sy=sy, rot=rot, rescale=rescale)
     
 def make_glyph(n=0, shape=(28,28), color=(255,255,255), lw=1, dx=0, dy=0, sx=1, sy=1, rot=0, rescale=True):
+    if not isinstance(shape, tuple):
+        shape = (shape, shape)        
     a = np.zeros(shape, dtype=np.uint8)
     w,h = a.shape[1],a.shape[0]
     if isinstance(n, int):
@@ -109,6 +111,9 @@ def make_glyph(n=0, shape=(28,28), color=(255,255,255), lw=1, dx=0, dy=0, sx=1, 
         cv2.rectangle(a, (0, 0), (w,h//3), color, -1)
     elif n==Glyph.BOTTOM3:        
         cv2.rectangle(a, (w//3, h//3), (w,h), color, -1)
+    else:
+        print(f'WARN: unknown shape: {n}')
+        return a
         
     if dx!=0 or dy!=0:
         dxy = np.float32([[1, 0, dx], [0, 1, dy]])
