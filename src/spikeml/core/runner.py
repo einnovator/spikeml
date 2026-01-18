@@ -28,11 +28,17 @@ class Context():
     phase: Any = None
     batch: bool = None
     
-    def __init__(self, t: int = 0, phase: Any = None, batch: bool = None):
+    def __init__(self, t: int = 0, phase: Any = None, batch: bool = None, channels: bool = None, channels_last: bool = None):
         self.t = t
         self.phase = phase
         self.batch = batch
-        
+        self.channels = channels
+        self.channels_last = channels_last
+
+    def is_channels_last(self, context: Optional[Any]=None):
+        return context is not None and context.channels_last
+
+
     def set_attr(self, key, value):
         setattr(self, key, value)
         

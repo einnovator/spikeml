@@ -71,7 +71,8 @@ def mshow(img, title=None, cmap=DEFAULT_CMAP, title_size=8, labels_size=6, ax=No
 
 
 #imgs: [array(H,W)[:int32]]
-def show_imgs(imgs, titles=None, suptitle=None, cmap=None, ncols=None, nrows=None, bgr=False, suptitle_size=6, title_size=6, figsize=None, pad=0):
+def show_imgs(imgs, titles=None, suptitle=None, cmap=None, ncols=None, nrows=None, bgr=False,
+              suptitle_size=6, title_size=6, figsize=None, pad=0, normalize=True):
     if isinstance(imgs, list):
         imgs = np.array(imgs)
     n = imgs.shape[0]
@@ -103,7 +104,10 @@ def show_imgs(imgs, titles=None, suptitle=None, cmap=None, ncols=None, nrows=Non
             cmap_ = cmap[i] if isinstance(cmap, list) else cmap
         if bgr and len(img.shape)==3 and img.shape[2]==3:
             img=cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        axs[i].imshow(img, cmap=cmap_)
+        if not normalize:
+            axs[i].imshow(img, cmap=cmap_, vmin=0, vmax=img.max())
+        else:
+            axs[i].imshow(img, cmap=cmap_)
         STYLE_PLOT_TITLE= {'fontsize': title_size }
         if titles and i<len(titles):
             axs[i].set_title(str(titles[i]), **STYLE_PLOT_TITLE)
@@ -117,12 +121,14 @@ def cv_bgr2rgb(img):
     return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
 
-def show_kernels(M, shape=None, figsize=None, pad=.1,  titles=None, suptitle=None, suptitle_size=6, title_size=6):
+def show_kernels(M, shape=None, figsize=None, pad=.1,  titles=None, suptitle=None, suptitle_size=6, title_size=6,
+                 normalize=True):
     if shape is not None:
         M = M.reshape(M.shape[0], shape[0], shape[1])
     if titles is None:
         titles = [f'{i}' for i in range(0, M.shape[0])]        
-    show_imgs(M, ncols=min(M.shape[0],20), figsize=figsize, pad=pad, titles=titles, suptitle=suptitle, suptitle_size=suptitle_size, title_size=title_size)
+    show_imgs(M, ncols=min(M.shape[0],20), figsize=figsize, pad=pad,
+              titles=titles, suptitle=suptitle, suptitle_size=suptitle_size, title_size=title_size, normalize=normalize)
 
 
 def show_kernels_(M__, step=10, figsize=None):

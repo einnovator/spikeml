@@ -108,6 +108,13 @@ class Layer(Module):
     def is_batch(self, context: Optional[Any]=None):
         return context is not None and context.batch
 
+    def is_channels(self, context: Optional[Any]=None):
+        return context is not None and context.channels
+
+    def is_channels_last(self, context: Optional[Any]=None):
+        return context is not None and context.channels_last
+
+
     def predict(self, x):
         context = Context(phase=PHASE_PROPAGATION)
         return self.propagate(x, context)

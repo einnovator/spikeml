@@ -102,15 +102,15 @@ def make_glyph(n=0, shape=(28,28), color=(255,255,255), lw=1, dx=0, dy=0, sx=1, 
     elif n==Glyph.TOP:        
         cv2.rectangle(a, (0, 0), (w,h//2), color, -1)
     elif n==Glyph.BOTTOM:        
-        cv2.rectangle(a, (w//2, h//2), (w,h), color, -1)
+        cv2.rectangle(a, (0, h//2), (w,h), color, -1)
     elif n==Glyph.LEFT3:        
         cv2.rectangle(a, (0, 0), (w//3,h), color, -1)
     elif n==Glyph.RIGHT3:        
-        cv2.rectangle(a, (w//3,0), (w,h), color, -1)
+        cv2.rectangle(a, (2*w//3,0), (w,h), color, -1)
     elif n==Glyph.TOP3:        
         cv2.rectangle(a, (0, 0), (w,h//3), color, -1)
     elif n==Glyph.BOTTOM3:        
-        cv2.rectangle(a, (w//3, h//3), (w,h), color, -1)
+        cv2.rectangle(a, (0, 2*h//3), (w,h), color, -1)
     else:
         print(f'WARN: unknown shape: {n}')
         return a
@@ -133,7 +133,7 @@ def make_glyphs(nn=None, shape=(28,28), color=(255,255,255), lw=1, dx=0, dy=0, s
     return [ make_glyph(n, shape=shape, color=color, lw=lw, dx=dx, dy=dy, sx=sx, sy=sy, rot=rot, rescale=rescale) for n in nn ] 
 
 
-def show_glyphs(nn=None, shape=(28,28), color=(255,255,255), lw=1, dx=0, dy=0, sx=1, sy=1, rot=0, rescale=True, ncols=10, pad=1):
+def show_glyphs(nn=None, shape=(28,28), color=(255,255,255), titles=None, lw=1, dx=0, dy=0, sx=1, sy=1, rot=0, rescale=True, ncols=10, pad=1):
     if nn is None:
         nn = list(Glyph)
     ncols = min(ncols, len(nn))
@@ -143,8 +143,7 @@ def show_glyphs(nn=None, shape=(28,28), color=(255,255,255), lw=1, dx=0, dy=0, s
         titles = [ str(g) for g in nn ]
     else:
         aa = nn
-        titles = None
-    show_imgs(aa, ncols=10, titles=titles, title_size=6, figsize=(ncols*1, nrows*1))
+    show_imgs(aa, ncols=10, titles=titles, title_size=6, figsize=(ncols*(1+pad), nrows*(1+pad)), pad=pad)
 
 
 def glyph_dataset(n, gg=None, shape=(28,28), color=(255,255,255), lw_min=1, lw_max=3, 
