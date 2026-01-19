@@ -104,11 +104,11 @@ def make_glyph(n=0, shape=(28,28), color=(255,255,255), lw=1, dx=0, dy=0, sx=1, 
     elif n==Glyph.BOTTOM:        
         cv2.rectangle(a, (0, h//2), (w,h), color, -1)
     elif n==Glyph.LEFT3:        
-        cv2.rectangle(a, (0, 0), (w//3,h), color, -1)
+        cv2.rectangle(a, (0, 0), (w//3-1,h), color, -1)
     elif n==Glyph.RIGHT3:        
         cv2.rectangle(a, (2*w//3,0), (w,h), color, -1)
     elif n==Glyph.TOP3:        
-        cv2.rectangle(a, (0, 0), (w,h//3), color, -1)
+        cv2.rectangle(a, (0, 0), (w,h//3-1), color, -1)
     elif n==Glyph.BOTTOM3:        
         cv2.rectangle(a, (0, 2*h//3), (w,h), color, -1)
     else:

@@ -16,7 +16,7 @@ def html(*args, **kwargs):
     def np2html(a):
         """" Convert matrices to HTML tables """
         if len(a.shape)>=2:
-            return f'<table style="{style}">' + "".join("<tr>" + "".join(f'<td style="padding:1px;padding-right:2px">{val:.3f}</td>' for val in row) + "</tr>" for row in a) + "</table>"
+            return f'<table style="{style}">' + "".join("<tr>" + "".join(f'<td style="padding:1px;padding-right:2px">{val:.3g}</td>' for val in row) + "</tr>" for row in a) + "</table>"
         else:
             return f'<span style="{style}">' + str(a) + '</span>'
 
