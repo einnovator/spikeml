@@ -7,7 +7,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 from spikeml.utils.vector import _sum, upsample
 from spikeml.core.base import Component, Module, Fan, Composite, Chain, Adapter
-from spikeml.core.params import Params, LayerParams
+from spikeml.core.params import Params, LayerParams, NNParams
 
 from spikeml.core.layer_monitor import LayerMonitor
 from spikeml.core.layer_viewer import  LayerMonitorViewer
@@ -261,7 +261,7 @@ class LinearLayer(SimpleLayer):
         self.b = b
         self.force = force
         if params is None:
-            params = LayerParams()
+            params = NNParams()
         self.params = params
         if monitor==True:
             monitor = LayerMonitor(ref=self)

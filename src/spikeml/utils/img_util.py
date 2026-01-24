@@ -73,9 +73,7 @@ def mshow(img, title=None, cmap=DEFAULT_CMAP, title_size=8, labels_size=6, ax=No
 #imgs: [array(H,W)[:int32]]
 def show_imgs(imgs, titles=None, suptitle=None, cmap=None, ncols=None, nrows=None, bgr=False,
               suptitle_size=6, title_size=6, figsize=None, pad=0, normalize=True):
-    if isinstance(imgs, list):
-        imgs = np.array(imgs)
-    n = imgs.shape[0]
+    n = len(imgs) if isinstance(imgs, list) else imgs.shape[0]
     if ncols==None:
         if nrows==None:
             ncols=1
@@ -96,8 +94,10 @@ def show_imgs(imgs, titles=None, suptitle=None, cmap=None, ncols=None, nrows=Non
         ax.set_yticks([])
         ax.set_yticklabels([])
         ax.tick_params(left=False)
-    for i in range(imgs.shape[0]):
+    for i in range(n):
         img = imgs[i] 
+        if img is None:
+            continue
         if cmap is None:
             cmap_ = 'gray' if len(img.shape)==2 else None
         else:
@@ -126,8 +126,9 @@ def show_kernels(M, shape=None, figsize=None, pad=.1,  titles=None, suptitle=Non
     if shape is not None:
         M = M.reshape(M.shape[0], shape[0], shape[1])
     if titles is None:
-        titles = [f'{i}' for i in range(0, M.shape[0])]        
-    show_imgs(M, ncols=min(M.shape[0],20), figsize=figsize, pad=pad,
+        titles = [f'{i}' for i in range(0, M.shape[0])]    
+    n = len(M) if isinstance(M, list) else M.shape[0] 
+    show_imgs(M, ncols=min(n,20), figsize=figsize, pad=pad,
               titles=titles, suptitle=suptitle, suptitle_size=suptitle_size, title_size=title_size, normalize=normalize)
 
 

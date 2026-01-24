@@ -156,12 +156,19 @@ class RateConnector(LinearConnector):
                 self.dMn = -np.sum(dMn, 0)
                 
         self.dM = _sum(self.dMp, self.dMn)
-        if self.dM is not None:
-            self.M += self.dM
+
+        M = self.M.reshape(self.M.shape[0], -1) if self.M.ndim>2 else self.M
+
+        print('self.M:', self.M.shape, self.M.ndim, '; M:', M.shape, '; dM:', self.dM.shape)
+
+        M += self.dM
+
         if self.params.cmin is not None and self.params.cmax is not None:
-            self.M = np.clip(self.M, self.params.cmin, self.params.cmax)
+            M = np.clip(M, self.params.cmin, self.params.cmax)
         if (self.params.c_in is not None and self.params.c_in>0) or (self.params.c_out is not None and self.params.c_out>0):
-            self.M = normalize_matrix(self.M, c_in=self.params.c_in, c_out=self.params.c_out, strict=False)
+            M = normalize_matrix(M, c_in=self.params.c_in, c_out=self.params.c_out, strict=False)
+
+        self.M = M.reshape(self.M.shape) if self.M.ndim>2 else M
 
         return self.M
 
