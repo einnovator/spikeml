@@ -577,12 +577,12 @@ class DataRunner(Runner):
                     print(f'step = {idx}:')
                     
                 
-                out = ref(x, context)
+                y = ref(x, context)
                 
                 ref.sample(context)
 
                 if callback is not None:
-                    if callback(self, x, out, context)==False:
+                    if callback(self, ref, x, y, context)==False:
                         done = True
                         break
 

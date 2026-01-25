@@ -83,7 +83,7 @@ class SensingMonitor(Monitor):
         super().__init__(name, ref)
         self.E = E
 
-    def _get_sensor_input(self) -> Optional[np.ndarray]:
+    def _get_sensor_input(self, options=None) -> Optional[np.ndarray]:
         from spikeml.core.sensor import SSensor
         
         """Retrieve sensor input 'sx' from connected SSensor layer."""
@@ -103,7 +103,7 @@ class SensingMonitor(Monitor):
         return None
     
     def _log(self, options: Optional[Dict[str, Any]] = None) -> None:
-        sx = self._get_sensor_input()
+        sx = self._get_sensor_input(options)
         if sx is None:
             if options is not None and options.get('verbose', False):
                 print('WARN: No sensor input', self)
