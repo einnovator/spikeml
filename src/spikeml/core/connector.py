@@ -173,7 +173,7 @@ class RateConnector(LinearConnector):
         return self.M
 
     def log(self, options: Optional[Dict[str, Any]] = None) -> None:
-        xdisplay(Markup('_M', self._M), Markup('Zp', self.Zp), Markup('Zn', self.Zn), Markup('dM', self.dM), Markup('dMp', self.dMp), Markup('dMn', self.dMn), Markup('M', self.M))
+        xdisplay(Markup('_M', self._M), Markup('Zp', self.Zp.reshape(self.M.shape)), Markup('Zn', self.Zn.reshape(self.M.shape)), Markup('dM', self.dM.reshape(self.M.shape)), Markup('dMp', self.dMp), Markup('dMn', self.dMn), Markup('M', self.M))
 
 
 class LIConnector(LinearConnector):

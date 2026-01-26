@@ -9,8 +9,10 @@ class Glyph(Enum):
     FILL = auto()
     VSLINE = auto()
     VLINE = auto()
+    VLINE2 = auto()
     HSLINE = auto()
     HLINE = auto()
+    HLINE2 = auto()
     PLUS = auto()
     CROSS = auto()
     SLASH = auto()
@@ -52,10 +54,14 @@ def make_glyph(n=0, shape=(28,28), color=(255,255,255), lw=1, dx=0, dy=0, sx=1, 
         cv2.line(a,(w//2,h//4),(w//2,h//4*3),color,lw)
     elif n==Glyph.VLINE:
         cv2.line(a,(w//2,0),(w//2,h),color,lw)
+    elif n==Glyph.VLINE2:
+        cv2.line(a,(w//2,0),(w//2,h),color,lw*2)
     elif n==Glyph.HSLINE:
         cv2.line(a,(w//4,h//2),(w//4*3,h//2),color,lw)
     elif n==Glyph.HLINE:
         cv2.line(a,(0,h//2),(w,h//2),color,lw)
+    elif n==Glyph.HLINE2:
+        cv2.line(a,(0,h//2),(w,h//2),color,lw*2)
     elif n==Glyph.PLUS:
         cv2.line(a,(w//2,h//4),(w//2,h//4*3),color,lw)
         cv2.line(a,(w//4,h//2),(w//4*3,h//2),color,lw)
