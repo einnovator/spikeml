@@ -159,7 +159,7 @@ class RateConnector(LinearConnector):
 
         M = self.M.reshape(self.M.shape[0], -1) if self.M.ndim>2 else self.M
 
-        print('self.M:', self.M.shape, self.M.ndim, '; M:', M.shape, '; dM:', self.dM.shape)
+        #print('self.M:', self.M.shape, self.M.ndim, '; M:', M.shape, '; dM:', self.dM.shape)
 
         M += self.dM
 
