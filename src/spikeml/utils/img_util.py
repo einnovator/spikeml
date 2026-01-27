@@ -2,6 +2,8 @@ import sys
 import numpy as np
 import matplotlib as mplt
 import matplotlib.pyplot as plt
+from matplotlib.gridspec import GridSpecFromSubplotSpec
+
 import random
 import math
 import copy
@@ -72,7 +74,7 @@ def mshow(img, title=None, cmap=DEFAULT_CMAP, title_size=8, labels_size=6, ax=No
 
 #imgs: [array(H,W)[:int32]]
 def show_imgs(imgs, titles=None, suptitle=None, cmap=None, ncols=None, nrows=None, bgr=False,
-              suptitle_size=6, title_size=6, figsize=None, pad=0, normalize=True):
+              suptitle_size=6, title_size=6, figsize=None, pad=0, normalize=True, parent=None, fig=None):
     n = len(imgs) if isinstance(imgs, list) else imgs.shape[0]
     if ncols==None:
         if nrows==None:
@@ -81,13 +83,24 @@ def show_imgs(imgs, titles=None, suptitle=None, cmap=None, ncols=None, nrows=Non
             ncols=int(n/nrows) + (n % nrows > 0)
     if nrows==None:
         nrows=n//ncols + int(n% ncols!=0)
-    fig = plt.figure(figsize=figsize) #, dpi=72)
-    axs = fig.subplots(nrows, ncols)
-    if nrows>1 or ncols>1:
-        axs = axs.flatten()
+    if parent is None:
+        fig = plt.figure(figsize=figsize) #, dpi=72)
+        axs = fig.subplots(nrows, ncols)
+        axs = axs.flatten() if (nrows>1 or ncols>1) else [axs]
+        plt.subplots_adjust(top=1-pad, bottom=0+pad, left=0+pad, right=1-pad, wspace=pad, hspace=pad) 
     else:
-        axs = [axs]
-    plt.subplots_adjust(top=1-pad, bottom=0+pad, left=0+pad, right=1-pad, wspace=pad, hspace=pad) 
+        subgrid = GridSpecFromSubplotSpec(nrows, ncols, subplot_spec=parent, wspace=pad, hspace=pad) #
+        axs = []
+        if suptitle:
+            ax_title = fig.add_subplot(subgrid[:, :])
+            ax_title.set_title(suptitle, fontsize=6, pad=2)
+            ax_title.axis("off")
+            suptitle = None
+        for r in range(nrows):
+            for c in range(ncols):
+                ax = fig.add_subplot(subgrid[r, c])
+                axs.append(ax)
+                
     #print('!!',nrows, ncols, axs)
     for ax in axs:
         ax.axis('off')
@@ -113,7 +126,8 @@ def show_imgs(imgs, titles=None, suptitle=None, cmap=None, ncols=None, nrows=Non
             axs[i].set_title(str(titles[i]), **STYLE_PLOT_TITLE)
     if suptitle is not None:
         plt.suptitle(suptitle, fontsize=suptitle_size, y=1.1)
-    plt.show()
+    if parent is None:
+        plt.show()
     return axs
 
     
@@ -125,8 +139,10 @@ def show_kernels(M, shape=None, figsize=None, pad=.1,  titles=None, suptitle=Non
                  normalize=True):
     if shape is not None:
         M = M.reshape(M.shape[0], shape[0], shape[1])
-    if titles is None:
-        titles = [f'{i}' for i in range(0, M.shape[0])]    
+    if titles==True:
+        titles = [f'{i}' for i in range(0, M.shape[0])]   
+    elif titles==False:
+        titles = None        
     n = len(M) if isinstance(M, list) else M.shape[0] 
     show_imgs(M, ncols=min(n,20), figsize=figsize, pad=pad,
               titles=titles, suptitle=suptitle, suptitle_size=suptitle_size, title_size=title_size, normalize=normalize)
