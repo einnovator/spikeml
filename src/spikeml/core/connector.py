@@ -138,26 +138,28 @@ class RateConnector(LinearConnector):
     def propagate(self, zs, zy, context: Optional[Any]=None):
         self._M = self.M.copy()
         self.dMp = self.dMn = None 
+        print('zs:', zs.shape, '; zy:', zy.shape)
         if not self.is_batch(context):
             if self.params.t_p>0:
                 self.Zp = np.outer(zy, zs)
-                self.dMp = (1/self.params.t_p)*(self.Zp)
+                self.dMp = (1/self.params.t_p)*self.Zp
             if self.params.t_d>0: 
                 self.Zn = np.outer(zy, self.params.vmax-zs)
-                self.dMn = -(1/self.params.t_d)*(self.Zn)
+                self.dMn = -(1/self.params.t_d)*self.Zn
         else:        
             if self.params.t_p>0:
-                Zp = zy[:, :, None] * zs[:, None, :]
-                dMp = (1/self.params.t_p)*Zp 
-                self.dMp = np.sum(dMp, 0)
+                self.Zp = zy[:, :, None] * zs[:, None, :]
+                self.dMp = (1/self.params.t_p)*self.Zp 
+                self.dMp = np.sum(self.dMp, 0)
             if self.params.t_d>0:
-                Zn = zy[:, :, None] * (self.params.vmax - zs[:, None, :])
-                dMn = (1/self.params.t_d)*Zn 
-                self.dMn = -np.sum(dMn, 0)
+                self.Zn = zy[:, :, None] * (self.params.vmax - zs[:, None, :])
+                self.dMn = (1/self.params.t_d)*self.Zn 
+                self.dMn = -np.sum(self.dMn, 0)
                 
         self.dM = _sum(self.dMp, self.dMn)
 
         M = self.M.reshape(self.M.shape[0], -1) if self.M.ndim>2 else self.M
+        print('Zp:', self.Zp.shape, '; Zn:', self.Zn.shape, '; dMp:', self.dMp.shape, '; dMn:', self.dMn.shape, '; self.M:', self.M.shape, '; M:', M.shape)
 
         #print('self.M:', self.M.shape, self.M.ndim, '; M:', M.shape, '; dM:', self.dM.shape)
 
@@ -169,11 +171,19 @@ class RateConnector(LinearConnector):
             M = normalize_matrix(M, c_in=self.params.c_in, c_out=self.params.c_out, strict=False)
 
         self.M = M.reshape(self.M.shape) if self.M.ndim>2 else M
+        print('self.M:', self.M.shape)
 
         return self.M
 
     def log(self, options: Optional[Dict[str, Any]] = None) -> None:
-        xdisplay(Markup('_M', self._M), Markup('Zp', self.Zp.reshape(self.M.shape)), Markup('Zn', self.Zn.reshape(self.M.shape)), Markup('dM', self.dM.reshape(self.M.shape)), Markup('dMp', self.dMp), Markup('dMn', self.dMn), Markup('M', self.M))
+        #def _reshape(A):
+            
+        Zp = self.Zp#[:,:,0] if self.Zp.ndim==3 else self.Zp
+        Zn = self.Zn#[:,0,:] if self.Zn.ndim==3 else self.Zn
+        dM = self.dM.reshape(self.M.shape)
+        dMp = self.dMp.reshape(self.M.shape)
+        dMn = self.dMn.reshape(self.M.shape)
+        xdisplay(Markup('_M', self._M), Markup('Zp', Zp), Markup('Zn', Zn), Markup('dM', dM), Markup('dMp', dMp), Markup('dMn', dMn), Markup('M', self.M))
 
 
 class LIConnector(LinearConnector):
