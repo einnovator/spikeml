@@ -31,10 +31,10 @@ class LayerMonitor(SensingMonitor):
         ref = self.ref
         if context is not None and context.batch:
             ref.u = ref.y.sum(axis=tuple(range(1, ref.y.ndim)))
-            ref.us = ref.s.sum(axis=tuple(range(1, ref.s.ndim)))        
+            ref.ux = ref.x.sum(axis=tuple(range(1, ref.x.ndim)))        
         else:
             ref.u = ref.y.sum()
-            ref.us = ref.s.sum()        
+            ref.ux = ref.x.sum()        
 
         
     def log(self, options: Optional[Dict[str, Any]] = None) -> None:

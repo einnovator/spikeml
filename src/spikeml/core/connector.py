@@ -135,31 +135,31 @@ class RateConnector(LinearConnector):
         self.Zp = self.Zn = None
         self.dM = self.dMp = self.dMn = None
         
-    def propagate(self, zs, zy, context: Optional[Any]=None):
+    def propagate(self, zx, zy, context: Optional[Any]=None):
         self._M = self.M.copy()
         self.dMp = self.dMn = None 
-        print('zs:', zs.shape, '; zy:', zy.shape)
+        #print('zx:', zx.shape, '; zy:', zy.shape)
         if not self.is_batch(context):
             if self.params.t_p>0:
-                self.Zp = np.outer(zy, zs)
+                self.Zp = np.outer(zy, zx)
                 self.dMp = (1/self.params.t_p)*self.Zp
             if self.params.t_d>0: 
-                self.Zn = np.outer(zy, self.params.vmax-zs)
+                self.Zn = np.outer(zy, self.params.vmax-zx)
                 self.dMn = -(1/self.params.t_d)*self.Zn
         else:        
             if self.params.t_p>0:
-                self.Zp = zy[:, :, None] * zs[:, None, :]
+                self.Zp = zy[:, :, None] * zx[:, None, :]
                 self.dMp = (1/self.params.t_p)*self.Zp 
                 self.dMp = np.sum(self.dMp, 0)
             if self.params.t_d>0:
-                self.Zn = zy[:, :, None] * (self.params.vmax - zs[:, None, :])
+                self.Zn = zy[:, :, None] * (self.params.vmax - zx[:, None, :])
                 self.dMn = (1/self.params.t_d)*self.Zn 
                 self.dMn = -np.sum(self.dMn, 0)
                 
         self.dM = _sum(self.dMp, self.dMn)
 
         M = self.M.reshape(self.M.shape[0], -1) if self.M.ndim>2 else self.M
-        print('Zp:', self.Zp.shape, '; Zn:', self.Zn.shape, '; dMp:', self.dMp.shape, '; dMn:', self.dMn.shape, '; self.M:', self.M.shape, '; M:', M.shape)
+        #print('Zp:', self.Zp.shape, '; Zn:', self.Zn.shape, '; dMp:', self.dMp.shape, '; dMn:', self.dMn.shape, '; self.M:', self.M.shape, '; M:', M.shape)
 
         #print('self.M:', self.M.shape, self.M.ndim, '; M:', M.shape, '; dM:', self.dM.shape)
 
@@ -171,7 +171,7 @@ class RateConnector(LinearConnector):
             M = normalize_matrix(M, c_in=self.params.c_in, c_out=self.params.c_out, strict=False)
 
         self.M = M.reshape(self.M.shape) if self.M.ndim>2 else M
-        print('self.M:', self.M.shape)
+        #print('self.M:', self.M.shape)
 
         return self.M
 
@@ -212,10 +212,10 @@ class LIConnector(LinearConnector):
         """Defines self @ other"""
         return self.M @ other
         
-    def propagate(self, zs, zy, context: Optional[Any]=None):
+    def propagate(self, zx, zy, context: Optional[Any]=None):
         self._M = self.M
         self.M, self.Cp, self.Cn, dM, dMp, dMn, Zp, Zn, Wp, Wn = \
-            self.conn_update(self.M, self.Cp, self.Cn, zy, zs, params=self.params, debug=False)
+            self.conn_update(self.M, self.Cp, self.Cn, zy, zx, params=self.params, debug=False)
         self.dM, self.dMp, self.dMn, self.Zp, self.Zn, self.Wp, self.Wn = dM, dMp, dMn, Zp, Zn, Wp, Wn 
         return self.M, self.Cp, self.Cn, dM, dMp, dMn, Zp, Zn, Wp, Wn
 
@@ -224,7 +224,7 @@ class LIConnector(LinearConnector):
         Cp: Optional[np.ndarray],
         Cn: Optional[np.ndarray],
         zy: np.ndarray,
-        zs: np.ndarray,
+        zx: np.ndarray,
         params: Optional['SSNNParams'] = None,
         debug: bool = False
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, Optional[np.ndarray], Optional[np.ndarray], Optional[np.ndarray], np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -241,7 +241,7 @@ class LIConnector(LinearConnector):
             Negative connection accumulator matrix. If None, initialized to zeros.
         zy : np.ndarray
             Post-synaptic spike vector.
-        zs : np.ndarray
+        zx : np.ndarray
             Pre-synaptic spike vector.
         params : SSNNParams, optional
             Parameters containing thresholds, decay times, LTP/LTD settings, etc.
@@ -278,8 +278,8 @@ class LIConnector(LinearConnector):
             Cp = np.zeros(M.shape)
         if Cn is None:
             Cn = np.zeros(M.shape)
-        Zp = np.outer(zy, zs)
-        Zn = np.outer(zy, 1-zs)
+        Zp = np.outer(zy, zx)
+        Zn = np.outer(zy, 1-zx)
         Cp += Zp
         Cn += Zn
         Wp = (Cp >= params.k_p).astype(int)
@@ -328,12 +328,12 @@ class LIConnector2(LinearConnector):
         self.Mn = Mn
 
         if not type(M)==tuple:
-            M, Cp, Cn, dM, dMp, dMn, Zp, Zn, Wp, Wn = conn_update(M, Cp, Cn, zy, zs, params=params, debug=debug)
+            M, Cp, Cn, dM, dMp, dMn, Zp, Zn, Wp, Wn = conn_update(M, Cp, Cn, zy, zx, params=params, debug=debug)
         else:
             Mp,Mn = M
-            M, Cp, Cn, dM, dMp, dMn, Zp, Zn, Wp, Wn = conn_update(Mp, Cp, Cn, zy, zs, params=params, debug=debug)
+            M, Cp, Cn, dM, dMp, dMn, Zp, Zn, Wp, Wn = conn_update(Mp, Cp, Cn, zy, zx, params=params, debug=debug)
             Mp[Mp < 0] = 0
-            Mn, dMn, dMnp, dMnn, Zp, Zn, Wp, Wn = cov_update(Mn, Cp, Cn, zy, zs, params=params, debug=debug)
+            Mn, dMn, dMnp, dMnn, Zp, Zn, Wp, Wn = cov_update(Mn, Cp, Cn, zy, zx, params=params, debug=debug)
             Mn[Mn > 0] = 0
             M_=(Mp,Mn)
             dM=(dMp,dMn)

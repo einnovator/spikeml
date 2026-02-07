@@ -153,6 +153,7 @@ class ConnectorParams(LayerParams):
     mean: float = Field(default=0)
     sd: float = Field(default=.1, ge=0)
     size: Any = Field(default=None)
+    topk: int = Field(default=0)
 
 class SpikeParams(LayerParams):
     """

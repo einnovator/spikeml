@@ -16,6 +16,8 @@ def html(*args, **kwargs):
     css_lsep = "border-right:thin solid #000; padding:0px;padding-left:2px"
     css_rsep = "border-left:thin solid #000; padding:0px;padding-right:2px"
     css_ldsep = "border-right:2px solid #000; padding:0px;padding-left:2px"
+    css_lddsep = "border-right:4px solid #000; padding:0px;padding-left:2px"
+    css_ldddsep = "border-right:6px solid #000; padding:0px;padding-left:2px"
 
     def np2html(a):
         """" Convert arrays (vectors, matrices, and dim==3) to HTML tables """
@@ -23,8 +25,10 @@ def html(*args, **kwargs):
             return f'<table style="{style}">' + "".join("<tr>" +
                     "".join(f'<td style="{css_td}">{val:.3g}</td>' for val in row) +
                     "</tr>" for row in a) + "</table>"
-        elif len(a.shape)==3:
-            rows = []
+
+        rows = []
+        
+        if len(a.shape)==3:
             for i in range(a.shape[1]):
                 cells = []
                 for k in range(a.shape[0]):
@@ -33,33 +37,53 @@ def html(*args, **kwargs):
                         cells.append(f'<td style="{css_lsep}"></td><td style="{css_rsep}"></td>')
                 row = "<tr>" + "".join(cells) + "</tr>"
                 rows.append(row)        
-            return (
-                f'<table style="{style}">'
-                + "".join(rows)
-                + "</table>"
-            )
-        elif len(a.shape)==4: #TODO
+        elif len(a.shape)==4: 
+            rows = []
+            for i in range(a.shape[3]):
+                cells = []
+                for n in range(a.shape[0]):
+                    for k in range(a.shape[1]):
+                        for c in range(a.shape[2]):
+                            val = a[n, k, c, i]
+                            cells.append(f'<td style="{css_td}">{val:.3g}</td>')
+                            if c<a.shape[2]-1:
+                                cells.append(f'<td style="{css_lsep}"></td><td style="{css_rsep}"></td>')
+                        if k<a.shape[1]-1:
+                            cells.append(f'<td style="{css_ldsep}"></td><td style="{css_rsep}"></td>')
+                    if n<a.shape[0]-1:
+                        cells.append(f'<td style="{css_lddsep}"></td><td style="{css_rsep}"></td>')
+                row = "<tr>" + "".join(cells) + "</tr>"
+                rows.append(row)       
+        elif len(a.shape)==5: 
             rows = []
             for i in range(a.shape[1]):
                 cells = []
-                for k in range(a.shape[0]):
-                    for c in range(a.shape[1]):
-                        cells += [f'<td style="{css_td}">{val:.3g}</td>' for val in a[k, c, i]]
-                        if c<a.shape[1]-1:
-                            cells.append(f'<td style="{css_lsep}"></td><td style="{css_rsep}"></td>')
-                    if k<a.shape[0]-1:
-                        cells.append(f'<td style="{css_ldsep}"></td><td style="{css_rsep}"></td>')
-                    row = "<tr>" + "".join(cells) + "</tr>"
-                rows.append(row)        
-            return (
-                f'<table style="{style}">'
-                + "".join(rows)
-                + "</table>"
-            )
-
+                for n in range(a.shape[0]):
+                    for l in range(a.shape[1]):
+                        for k in range(a.shape[2]):
+                            for c in range(a.shape[3]):
+                                val=a[n, l, k, c, i]
+                                cells.append(f'<td style="{css_td}">{val:.3g}</td>')
+                                if c<a.shape[3]-1:
+                                    cells.append(f'<td style="{css_lsep}"></td><td style="{css_rsep}"></td>')
+                            if k<a.shape[2]-1:
+                                cells.append(f'<td style="{css_ldsep}"></td><td style="{css_rsep}"></td>')
+                    if l<a.shape[1]-1:
+                        cells.append(f'<td style="{css_lddsep}"></td><td style="{css_rsep}"></td>')
+                    if n<a.shape[0]-1:
+                        cells.append(f'<td style="{css_ldddsep}"></td><td style="{css_rsep}"></td>')
+                row = "<tr>" + "".join(cells) + "</tr>"
+                rows.append(row) 
         else:
-            return f'<span style="{style}">' + str(a) + '</span>'
-        
+            cells = [f'<td style="{style}">{str(a)}</td>']
+            row = "<tr>" + "".join(cells) + "</tr>"
+            rows.append(row)         
+        return (
+            f'<table style="{style}">'
+            + "".join(rows)
+            + "</table>"
+        )
+
 
     def val2html(val):
         if isinstance(val, Markup):

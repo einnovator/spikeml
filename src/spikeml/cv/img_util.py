@@ -6,8 +6,6 @@ from spikeml.utils.img_util import show_img, show_imgs, cv_bgr2rgb, mshow, show_
 from spikeml.utils.nb_util import xdisplay, Markup
 
 def show_kmaps(xx, ym, labels, M=None, klabels=False, batch=True, debug=False):
-    if debug:
-        xdisplay(*[ Markup(f'{klabels[j]}: M[{j}]', M[j]) for j in range(M.shape[0])])
     if M is not None:
         kimgs = [None] + list(M)
         if klabels==True:
@@ -15,11 +13,17 @@ def show_kmaps(xx, ym, labels, M=None, klabels=False, batch=True, debug=False):
         elif klabels==False:
             klabels = None        
         if isinstance(klabels, list):
+            if debug:
+                klabels_ = [ (f'{klabels[j]}: M[{j}]' if klabels is not None else f'{M[{j}]}') for j in range(M.shape[0])]
+                xdisplay(*[ Markup(klabels_[j], M[j]) for j in range(M.shape[0])])        
             klabels = [None]+klabels
-            show_kernels(kimgs, pad=0.1, figsize=((1+M.shape[0])*1, 1), titles=klabels)
+        else:
+            if debug:
+                xdisplay(*[ M[j] for j in range(M.shape[0])])        
+        show_kernels(kimgs, pad=0.1, figsize=((1+M.shape[0])*1, 1), titles=klabels)
         nk = M.shape[0]
     else:
-        nk = xx.shape[1 if batch else 0]
+        nk = ym.shape[1 if batch else 0]
     if batch:
         for i in range(ym.shape[0]):
             #show_tiles(xt[i], titles=labels_[i], batch=False, figsize=(1,1), pad=0.1, normalize=False)
@@ -34,7 +38,8 @@ def show_kmaps(xx, ym, labels, M=None, klabels=False, batch=True, debug=False):
         if debug:
             xdisplay(*([Markup(f'{labels} xx', xx)] + [ Markup(f'ym[{j}]', ym[j]) for j in range(ym.shape[0])]))
         imgs = [xx] + list(ym)
-        show_imgs(imgs, ncols=1+min(nk,20), figsize=(len(imgs)*1,1), pad=.1,
+        ncols = 1+min(nk,20)
+        show_imgs(imgs, ncols=ncols, figsize=(ncols*1,1), pad=.1,
                 titles=[labels], title_size=6, normalize=False)
 
 

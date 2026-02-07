@@ -38,7 +38,7 @@ class LayerMonitorViewer(SensingMonitorViewer):
                 self._plot_data(['y'], options=options, ax=axs[k+1], callback=lambda ax: self._plot_input(ax))
             plt.show()
         if filter('u', options, ref):
-            self._plot_data(['u', 'us'], shared=True, callback=lambda ax: self._plot_input(ax), options=options)
+            self._plot_data(['u', 'ux'], shared=True, callback=lambda ax: self._plot_input(ax), options=options)
 
 
 class SLayerMonitorViewer(SensingMonitorViewer):
@@ -68,4 +68,4 @@ class SLayerMonitorViewer(SensingMonitorViewer):
                 self._plot_data(['y'], options=options, ax=axs[k+1], callback=lambda ax: self._plot_input(ax))
             plt.show()
         if filter('u', options, ref):
-            self._plot_data(['u', 'us'], shared=True, callback=lambda ax: self._plot_input(ax), options=options)
+            self._plot_data(['u', 'ux'], shared=True, callback=lambda ax: self._plot_input(ax), options=options)
