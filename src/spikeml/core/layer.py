@@ -327,19 +327,66 @@ class NormalizeLayer(Layer):
 
     def __init__(self,
                 norm: Optional[int] = 2,
+                axis: Optional[int] = 1,
                 scale: Optional[float] = 1,
                 name: Optional[str] = None,
                  callback: Optional[Any] = None) -> None:
         super().__init__(name=name)
         self.norm = norm
+        self.axis = axis
         self.scale = scale
                 
     def propagate(self, s, context: Optional[Any]=None):
         s_ = s[0] if isinstance(s, tuple) else s 
-        s_ = normalize_all(s_, norm=self.norm)
+        s_ = normalize_all(s_, norm=self.norm, axis=self.axis)
         if self.scale is not None and self.scale!=1:
             s_ = s_ * self.scale
         return (s_, s[1]) if isinstance(s, tuple) else s_ 
+
+class LayerNorm(Layer):
+    def __init__(self, mean_only=False, group_channels=True, gamma=None, beta=None, eps=1e-5, name=None):
+        """
+        mean_only: if True, do only mean centering (no variance normalization)
+        center: learn beta
+        scale: learn gamma
+        shape: tuple of feature dimensions (e.g. (W,H) or (D,))
+        eps: numerical stability
+        """
+        super().__init__(name=name)
+        self.mean_only = mean_only
+        self.group_channels = group_channels 
+        self.gamma = gamma
+        self.beta = beta
+        self.eps = eps
+
+    def propagate(self, x, context=None):
+        batch = self.is_batch(context)
+        channels = self.is_channels(context)
+        if batch:
+            if not channels or self.group_channels:
+                axes = tuple(range(1, x.ndim))   # exclude batch
+            else:
+                axes = tuple(range(2, x.ndim))   # exclude batch
+        else:
+            if not channels or self.group_channels:
+                axes = tuple(range(0, x.ndim))   # all dims are features
+            else:
+                axes = tuple(range(1, x.ndim))   # all dims are features
+                
+        mean = x.mean(axis=axes, keepdims=True)
+        x_ = x - mean
+
+        if not self.mean_only:
+            var = x.var(axis=axes, keepdims=True)
+            x_ = x_ / np.sqrt(var + self.eps)
+
+        if self.gamma is not None:
+            x_ *= self.gamma
+
+        if self.beta is not None:
+            x_ += self.beta
+
+        return x_
 
     
 class ThresholdLayer(Layer):

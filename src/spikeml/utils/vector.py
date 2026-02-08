@@ -229,17 +229,22 @@ def normalize(a, norm=1):
     return a/n if n!=0 else a
 
 
-def normalize_all(a, norm=1, axis=-1):
-    if len(a.shape)==1:
-        return normalize(a, norm)
-    if norm==1:
-        s_ = np.abs(a).sum(axis)
-        s_[s_ == 0] = 1
-        a = a/s_[:,None]
-        return a
-    elif norm==2:
-        n = np.linalg.norm(a, axis=axis)
-        a = a / n[:,None]
-        return a
+    
+def normalize_all(a, norm=1, axis=-1, eps=1e-12):
+    """
+    Normalize array along given axis for any shape.
+
+    Works for (N,D), (N,W,H), (B,C,H,W), etc.
+    """
+    if norm == 1:
+        s = np.sum(np.abs(a), axis=axis, keepdims=True)
+        s = np.maximum(s, eps)
+        return a / s
+
+    elif norm == 2:
+        n = np.linalg.norm(a, axis=axis, keepdims=True)
+        n = np.maximum(n, eps)
+        return a / n
+
     else:
-        return a 
+        return a

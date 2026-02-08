@@ -133,24 +133,3 @@ def show_imgs(imgs, titles=None, suptitle=None, cmap=None, ncols=None, nrows=Non
     
 def cv_bgr2rgb(img):
     return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-
-
-def show_kernels(M, shape=None, figsize=None, pad=.1,  titles=None, suptitle=None, suptitle_size=6, title_size=6,
-                 normalize=True):
-    if shape is not None:
-        M = M.reshape(M.shape[0], shape[0], shape[1])
-    if titles==True:
-        titles = [f'{i}' for i in range(0, M.shape[0])]   
-    elif titles==False:
-        titles = None        
-    n = len(M) if isinstance(M, list) else M.shape[0] 
-    show_imgs(M, ncols=min(n,20), figsize=figsize, pad=pad,
-              titles=titles, suptitle=suptitle, suptitle_size=suptitle_size, title_size=title_size, normalize=normalize)
-
-
-def show_kernels_(M__, step=10, figsize=None):
-    for t in range(0, len(M__)):
-        if t % step != 0:
-            continue
-        show_imgs(M__[t], ncols=min(M.shape[0],20), title_size=6, figsize=figsize, titles=[f'{t}:{i}' for i in range(0, M__[0].shape[0])])
-        #print(M__[t][0])
