@@ -254,7 +254,7 @@ class LinearLayer(SimpleLayer):
                  name: Optional[str] = None,
                  callback: Optional[Any] = None) -> None:
         super().__init__(M=M, phase=phase, name=name, auto_sample=auto_sample, callback=callback)
-        self.s = None
+        self.x = None
         self.y = None
         if isinstance(b, numbers.Number):
             b = np.ones((M.shape[0]))*b
@@ -270,21 +270,21 @@ class LinearLayer(SimpleLayer):
         self.viewer=viewer
         self.monitor=monitor
                 
-    def propagate(self, s: Union[np.ndarray, Tuple[np.ndarray, np.ndarray]], context: Optional[Any]=None) -> Tuple[np.ndarray, np.ndarray]:
+    def propagate(self, x: Union[np.ndarray, Tuple[np.ndarray, np.ndarray]], context: Optional[Any]=None) -> Tuple[np.ndarray, np.ndarray]:
         """
         Propagate input spikes through the network and update neuron potentials.
         
         Args:
-            s: Input array or tuple (s, zs) of vector pair (rate, spikes).
+            x: Input array or tuple (x, zx) of vector pair (rate, spikes).
 
         Returns:
             Tuple containing updated potentials (y) and spikes (zy).
         """
-        self.s, _y = s if isinstance(s, tuple) else (s, None)
+        self.x, _y = x if isinstance(x, tuple) else (x, None)
 
 
         if self.is_propagation(context):    
-            self.y = self._propagate(self.s, batch=self.is_batch(context))
+            self.y = self._propagate(self.x, batch=self.is_batch(context))
                 
         if _y is None or not self.force:
             _y = self.y
@@ -294,13 +294,14 @@ class LinearLayer(SimpleLayer):
                 self.b = bias_update(self.b, self.y, batch=self.is_batch(context), params=self.params)        
 
             if hasattr(self.M, 'propagate'): 
-                self.M.propagate(self.s, _y, context)
+                self.M.propagate(self.x, _y, context)
 
         
-        return (self.y, s[1]) if isinstance(s, tuple) else self.y
+        return (self.y, x[1]) if isinstance(x, tuple) else self.y
     
 
     def _propagate(self, x, batch):
+        #print('!', x.shape, self.M.shape, batch)
         if not batch:
             _y = self.M @ x
         else:
@@ -314,7 +315,7 @@ class LinearLayer(SimpleLayer):
 
 
     def log(self, options: Optional[Dict[str, Any]] = None) -> None:
-        print(f'{self._prefix()}: s={self.s} -> y={self.y}') 
+        print(f'{self._prefix()}: x={self.x} -> y={self.y}') 
         if self.b is not None:
             print(f'{self._prefix()}: b={self.b}') 
         self.log_connector(options)
@@ -327,24 +328,41 @@ class NormalizeLayer(Layer):
 
     def __init__(self,
                 norm: Optional[int] = 2,
-                axis: Optional[int] = 1,
+                axis: Optional[Any] = None,
                 scale: Optional[float] = 1,
                 name: Optional[str] = None,
-                 callback: Optional[Any] = None) -> None:
+                callback: Optional[Any] = None) -> None:
         super().__init__(name=name)
         self.norm = norm
         self.axis = axis
         self.scale = scale
+     
+    def _axis(self, x, context=None):
+        batch = self.is_batch(context)
+        channels = self.is_channels(context)
+        if batch:
+            if not channels or self.group_channels:
+                axis = tuple(range(1, x.ndim))   # exclude batch
+            else:
+                axis = tuple(range(2, x.ndim))   # exclude batch
+        else:
+            if not channels or self.group_channels:
+                axis = tuple(range(0, x.ndim))   # all dims are features
+            else:
+                axis = tuple(range(1, x.ndim))   # all dims are features
                 
-    def propagate(self, s, context: Optional[Any]=None):
-        s_ = s[0] if isinstance(s, tuple) else s 
-        s_ = normalize_all(s_, norm=self.norm, axis=self.axis)
+        return axis
+               
+    def propagate(self, x, context: Optional[Any]=None):
+        x_ = x[0] if isinstance(x, tuple) else x 
+        axis = self.axis if self.axis is not None else self._axis(x, context)
+        y = normalize_all(x_, norm=self.norm, axis=self.axis)
         if self.scale is not None and self.scale!=1:
-            s_ = s_ * self.scale
-        return (s_, s[1]) if isinstance(s, tuple) else s_ 
+            y = y * self.scale
+        return (y, x[1]) if isinstance(x, tuple) else y 
 
 class LayerNorm(Layer):
-    def __init__(self, mean_only=False, group_channels=True, gamma=None, beta=None, eps=1e-5, name=None):
+    def __init__(self, mean_only=False, group_channels=True, gamma=None, beta=None, eps=1e-5, params=None, name=None):
         """
         mean_only: if True, do only mean centering (no variance normalization)
         center: learn beta
@@ -352,41 +370,50 @@ class LayerNorm(Layer):
         shape: tuple of feature dimensions (e.g. (W,H) or (D,))
         eps: numerical stability
         """
-        super().__init__(name=name)
+        super().__init__(name=name, params=params)
         self.mean_only = mean_only
         self.group_channels = group_channels 
         self.gamma = gamma
         self.beta = beta
         self.eps = eps
 
-    def propagate(self, x, context=None):
+
+    def _axis(self, x, context=None):
         batch = self.is_batch(context)
         channels = self.is_channels(context)
         if batch:
             if not channels or self.group_channels:
-                axes = tuple(range(1, x.ndim))   # exclude batch
+                axis = tuple(range(1, x.ndim))   # exclude batch
             else:
-                axes = tuple(range(2, x.ndim))   # exclude batch
+                axis = tuple(range(2, x.ndim))   # exclude batch
         else:
             if not channels or self.group_channels:
-                axes = tuple(range(0, x.ndim))   # all dims are features
+                axis = tuple(range(0, x.ndim))   # all dims are features
             else:
-                axes = tuple(range(1, x.ndim))   # all dims are features
+                axis = tuple(range(1, x.ndim))   # all dims are features
                 
-        mean = x.mean(axis=axes, keepdims=True)
-        x_ = x - mean
+        return axis
+            
+    def propagate(self, x, context=None):
+        batch = self.is_batch(context)
+        channels = self.is_channels(context)
+        axis = self._axis(x, context)
 
+        mean = x.mean(axis=axis, keepdims=True)
+        y = x - mean
         if not self.mean_only:
-            var = x.var(axis=axes, keepdims=True)
-            x_ = x_ / np.sqrt(var + self.eps)
+            var = x.var(axis=axis, keepdims=True)
+            y = y / np.sqrt(var + self.eps)
 
         if self.gamma is not None:
-            x_ *= self.gamma
+            y *= self.gamma
 
         if self.beta is not None:
-            x_ += self.beta
+            y += self.beta
+        if self.params is not None:
+            y = np.clip(y, self.params.vmin, self.params.vmax)
 
-        return x_
+        return y
 
     
 class ThresholdLayer(Layer):

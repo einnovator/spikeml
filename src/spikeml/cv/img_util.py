@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 from spikeml.utils.img_util import show_img, show_imgs, cv_bgr2rgb, mshow
@@ -28,7 +29,7 @@ def show_kernels_(M__, step=10, figsize=None):
         show_imgs(M__[t], ncols=min(M.shape[0],20), title_size=6, figsize=figsize, titles=[f'{t}:{i}' for i in range(0, M__[0].shape[0])])
         #print(M__[t][0])
         
-def show_kmaps(xx, ym, labels, M=None, klabels=False, batch=True, ncols=-1, debug=False):
+def show_kmaps(xx, ym, labels, M=None, klabels=False, batch=True, ncols=-1, normalize=True, debug=False):
     if M is not None:
         nk = M.shape[0]
     else:
@@ -54,12 +55,12 @@ def show_kmaps(xx, ym, labels, M=None, klabels=False, batch=True, ncols=-1, debu
         show_kernels(kimgs, pad=0.1, figsize=((1+M.shape[0])*1, 1), titles=klabels, ncols=ncols)
     if batch:
         for i in range(ym.shape[0]):
-            #show_tiles(xt[i], titles=labels_[i], batch=False, figsize=(1,1), pad=0.1, normalize=False)
+            #show_tiles(xt[i], titles=labels_[i], batch=False, figsize=(1,1), pad=0.1, normalize=normalize)
             if debug:
                 xdisplay(*([Markup(f'{labels[i]} xx[{i}]', xx[i])]+[ Markup(f'ym[{i},{j}]', ym[i,j]) for j in range(ym.shape[1])]))
             imgs = [xx[i]] + list(ym[i])
             show_imgs(imgs, ncols=ncols, figsize=(ncols*1,1), pad=.1,
-                    titles=[labels[i]] if labels is not None else None, title_size=6, normalize=False)
+                    titles=[labels[i]] if labels is not None else None, title_size=6, normalize=normalize)
             if debug:
                 print('--'*10)
     else:
@@ -67,7 +68,7 @@ def show_kmaps(xx, ym, labels, M=None, klabels=False, batch=True, ncols=-1, debu
             xdisplay(*([Markup(f'{labels} xx', xx)] + [ Markup(f'ym[{j}]', ym[j]) for j in range(ym.shape[0])]))
         imgs = [xx] + list(ym)
         show_imgs(imgs, ncols=ncols, figsize=(ncols*1,1), pad=.1,
-                titles=[labels], title_size=6, normalize=False)
+                titles=[labels], title_size=6, normalize=normalize)
 
 
 

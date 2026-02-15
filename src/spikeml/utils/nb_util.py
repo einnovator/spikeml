@@ -39,14 +39,14 @@ def html(*args, **kwargs):
                 rows.append(row)        
         elif len(a.shape)==4: 
             rows = []
-            for i in range(a.shape[3]):
+            for i in range(a.shape[2]):
                 cells = []
                 for n in range(a.shape[0]):
                     for k in range(a.shape[1]):
-                        for c in range(a.shape[2]):
-                            val = a[n, k, c, i]
+                        for j in range(a.shape[3]):
+                            val = a[n, k, i, j]
                             cells.append(f'<td style="{css_td}">{val:.3g}</td>')
-                            if c<a.shape[2]-1:
+                            if j<a.shape[3]-1:
                                 cells.append(f'<td style="{css_lsep}"></td><td style="{css_rsep}"></td>')
                         if k<a.shape[1]-1:
                             cells.append(f'<td style="{css_ldsep}"></td><td style="{css_rsep}"></td>')
@@ -56,20 +56,20 @@ def html(*args, **kwargs):
                 rows.append(row)       
         elif len(a.shape)==5: 
             rows = []
-            for i in range(a.shape[1]):
+            for i in range(a.shape[3]):
                 cells = []
                 for n in range(a.shape[0]):
                     for l in range(a.shape[1]):
                         for k in range(a.shape[2]):
-                            for c in range(a.shape[3]):
-                                val=a[n, l, k, c, i]
+                            for j in range(a.shape[4]):
+                                val=a[n, l, k, i, j]
                                 cells.append(f'<td style="{css_td}">{val:.3g}</td>')
-                                if c<a.shape[3]-1:
+                                if j<a.shape[4]-1:
                                     cells.append(f'<td style="{css_lsep}"></td><td style="{css_rsep}"></td>')
                             if k<a.shape[2]-1:
                                 cells.append(f'<td style="{css_ldsep}"></td><td style="{css_rsep}"></td>')
-                    if l<a.shape[1]-1:
-                        cells.append(f'<td style="{css_lddsep}"></td><td style="{css_rsep}"></td>')
+                        if l<a.shape[1]-1:
+                            cells.append(f'<td style="{css_lddsep}"></td><td style="{css_rsep}"></td>')
                     if n<a.shape[0]-1:
                         cells.append(f'<td style="{css_ldddsep}"></td><td style="{css_rsep}"></td>')
                 row = "<tr>" + "".join(cells) + "</tr>"

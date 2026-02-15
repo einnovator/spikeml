@@ -92,14 +92,11 @@ class LayerParams(Params):
         Minimum neuron activation value (mean rate lower bound).
     vmax : float
         Maximum neuron activation value (mean rate upper bound).
-    name : str, optional
-        Optional name of the neural unit or layer.
     """
     g: float = Field(default=G, gt=0)
     e_err: float = Field(default=E_ERR)
-    vmin: float = Field(default=VMIN, ge=0)
-    vmax: float = Field(default=VMAX, ge=0)
-    name: Optional[str] = Field(default=None)
+    vmin: float = Field(default=VMIN)
+    vmax: float = Field(default=VMAX)
     #xx: Annotated[str, Field(default=None, strict=False), WithJsonSchema({'extra': 'data'})]
     
     def __str__(self):
