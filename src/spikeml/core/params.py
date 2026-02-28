@@ -150,7 +150,7 @@ class ConnectorParams(LayerParams):
     mean: float = Field(default=0)
     sd: float = Field(default=.1, ge=0)
     size: Any = Field(default=None)
-    topk: int = Field(default=0)
+
 
 class SpikeParams(LayerParams):
     """
@@ -199,8 +199,10 @@ class NNParams(LayerParams, BiasParams):
     Attributes
     ----------
     """    
-    
-    pass
+    topk: int = Field(default=0)    
+    norm: int = Field(default=0)
+    scale: int = Field(default=1)
+
 
 
 class SSensorParams(SpikeParams, BiasParams):
