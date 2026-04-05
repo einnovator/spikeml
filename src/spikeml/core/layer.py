@@ -355,7 +355,7 @@ class NormalizeLayer(Layer):
                
     def propagate(self, x, context: Optional[Any]=None):
         x_ = x[0] if isinstance(x, tuple) else x 
-        axis = self.axis if self.axis is not None else self._axis(x, context)
+        axis = self.axis if self.axis is not None else self._axis(x_, context)
         y = normalize_all(x_, norm=self.norm, axis=self.axis)
         if self.scale is not None and self.scale!=1:
             y = y * self.scale
