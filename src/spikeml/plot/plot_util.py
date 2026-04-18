@@ -600,7 +600,8 @@ def imshow_matrix(
     cmap: str = CMAP_M,
     aspect: Optional[Union[str, float]] = None,
     interpolation: str = 'nearest',
-    ax: Optional[Axes] = None
+    ax: Optional[Axes] = None,
+    figsize=None
 ) -> None:
     """
     Display a single 2D matrix as an image.
@@ -633,7 +634,9 @@ def imshow_matrix(
     fig = None
     if ax is None:
         nrows, ncols = 1, 1
-        fig, axs = plt.subplots(nrows, ncols, figsize=(1*ncols, 1*nrows))
+        if figsize is None:
+            figsize = (1*ncols, 1*nrows)
+        fig, axs = plt.subplots(nrows, ncols, figsize=figsize)
         ax = axs if nrows==1 and ncols==1 else axs[i] if nrows==1 else axs[0][0]
     if lim==None:
         lim = (None, None)
